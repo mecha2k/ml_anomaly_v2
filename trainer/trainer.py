@@ -47,7 +47,6 @@ class Trainer(BaseTrainer):
     def _train_epoch(self, epoch):
         self.model.train()
         self.train_metrics.reset()
-        train_loss = list()
         for batch_idx, (data, target) in enumerate(self.data_loader):
             data, target = data.to(self.device), target.to(self.device)
 
@@ -65,8 +64,7 @@ class Trainer(BaseTrainer):
             priors_loss = priors_loss / len(priors)
 
             reconstruction_loss = self.criterion(output, data)
-            total_loss = reconstruction_loss - self.k * series_loss
-            train_loss.append(total_loss.item())
+            loss = reconstruction_loss - self.k * series_loss
 
             loss1 = reconstruction_loss - self.k * series_loss
             loss2 = reconstruction_loss + self.k * priors_loss
@@ -76,9 +74,9 @@ class Trainer(BaseTrainer):
             self.optimizer.step()
 
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-            self.train_metrics.update("loss", total_loss.item())
+            self.train_metrics.update("loss", loss.item())
             for met in self.metric_ftns:
-                self.train_metrics.update(met.__name__, met(output, target))
+                self.train_metrics.update(met.__name__, met(output, data))
 
             if batch_idx % self.log_step == 0:
                 self.logger.debug(
@@ -86,7 +84,7 @@ class Trainer(BaseTrainer):
                         epoch, self._progress(batch_idx), loss.item()
                     )
                 )
-                self.writer.add_image("input", make_grid(data.cpu(), nrow=8, normalize=True))
+                # self.writer.add_image("input", make_grid(data.cpu(), nrow=8, normalize=True))
             if batch_idx == self.len_epoch:
                 break
 
@@ -105,15 +103,22 @@ class Trainer(BaseTrainer):
         with torch.no_grad():
             for batch_idx, (data, target) in enumerate(self.valid_data_loader):
                 data, target = data.to(self.device), target.to(self.device)
+                output, series, priors, _ = self.model(data)
 
-                output = self.model(data)
-                loss = self.criterion(output, target)
+                series_loss = 0.0
+                for u in range(len(series)):
+                    s_loss, _ = association_discrepancy(series[u], priors[u], self.win_size)
+                    series_loss += s_loss
+                series_loss = series_loss / len(series)
+
+                reconstruction_loss = self.criterion(output, data)
+                loss = reconstruction_loss - self.k * series_loss
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, "valid")
                 self.valid_metrics.update("loss", loss.item())
                 for met in self.metric_ftns:
                     self.valid_metrics.update(met.__name__, met(output, target))
-                self.writer.add_image("input", make_grid(data.cpu(), nrow=8, normalize=True))
+                # self.writer.add_image("input", make_grid(data.cpu(), nrow=8, normalize=True))
 
         # add histogram of model parameters to the tensorboard
         for name, p in self.model.named_parameters():
