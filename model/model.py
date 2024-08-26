@@ -1,6 +1,65 @@
+import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
 from base import BaseModel
+from model.transformers import (
+    DataEmbedding,
+    Encoder,
+    EncoderLayer,
+    AttentionLayer,
+    AnomalyAttention,
+)
+
+
+class TransformerModel(BaseModel):
+    def __init__(
+        self,
+        win_size,
+        enc_in,
+        c_out,
+        d_model=512,
+        n_heads=8,
+        e_layers=3,
+        d_ff=512,
+        dropout=0.0,
+        activation="gelu",
+        output_attention=True,
+    ):
+        super().__init__()
+        self.output_attention = output_attention
+        self.embedding = DataEmbedding(enc_in, d_model, dropout)
+        self.encoder = Encoder(
+            [
+                EncoderLayer(
+                    AttentionLayer(
+                        AnomalyAttention(
+                            win_size,
+                            False,
+                            attention_dropout=dropout,
+                            output_attention=output_attention,
+                        ),
+                        d_model,
+                        n_heads,
+                    ),
+                    d_model,
+                    d_ff,
+                    dropout=dropout,
+                    activation=activation,
+                )
+                for _ in range(e_layers)
+            ],
+            norm_layer=torch.nn.LayerNorm(d_model),
+        )
+        self.projection = nn.Linear(d_model, c_out, bias=True)
+
+    def forward(self, x):
+        enc_out = self.embedding(x)
+        enc_out, series, prior, sigmas = self.encoder(enc_out)
+        enc_out = self.projection(enc_out)
+        if self.output_attention:
+            return enc_out, series, prior, sigmas
+        else:
+            return enc_out  # [B, L, D]
 
 
 class MnistModel(BaseModel):

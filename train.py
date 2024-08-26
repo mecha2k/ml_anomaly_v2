@@ -12,7 +12,6 @@ from utils import prepare_device
 from test import main as test_main
 
 
-# fix random seeds for reproducibility
 SEED = 123
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
@@ -60,18 +59,14 @@ def main(config):
 
     trainer.train()
 
+    return trainer.checkpoint_dir / "model_best.pth"
+
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="PyTorch Template")
-    args.add_argument(
-        "-c", "--config", default=None, type=str, help="config file path (default: None)"
-    )
-    args.add_argument(
-        "-r", "--resume", default=None, type=str, help="path to latest checkpoint (default: None)"
-    )
-    args.add_argument(
-        "-d", "--device", default=None, type=str, help="indices of GPUs to enable (default: all)"
-    )
+    args.add_argument("-c", "--config", default="config.json", type=str, help="config file path")
+    args.add_argument("-r", "--resume", default=None, type=str, help="path to latest checkpoint")
+    args.add_argument("-d", "--device", default=None, type=str, help="indices of GPUs to enable")
 
     # custom cli options to modify configuration from default values given in json file.
     CustomArgs = collections.namedtuple("CustomArgs", "flags type target")
@@ -81,7 +76,10 @@ if __name__ == "__main__":
     ]
     config = ConfigParser.from_args(args, options)
 
-    main(config)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("mps" if torch.backends.mps.is_available() else device)
+    print(f"{device} is available in torch")
+    config.device = device
 
-    # config.resume = train_main(config)
-    # test_main(config)
+    config.resume = main(config)
+    test_main(config)
