@@ -1,8 +1,15 @@
-import numpy as np
 import torch
+import numpy as np
+import matplotlib.pyplot as plt
 from torchvision.utils import make_grid
 from base import BaseTrainer
-from utils import inf_loop, MetricTracker, association_discrepancy, association_discrepancy_t
+from utils import (
+    inf_loop,
+    MetricTracker,
+    association_discrepancy,
+    association_discrepancy_t,
+    make_plot_image_array,
+)
 
 
 class Trainer(BaseTrainer):
@@ -64,6 +71,7 @@ class Trainer(BaseTrainer):
             priors_loss = priors_loss / len(priors)
 
             reconstruction_loss = self.criterion(output, data)
+            # total loss : minmax association learning
             loss = reconstruction_loss - self.k * series_loss
 
             loss1 = reconstruction_loss - self.k * series_loss
@@ -84,6 +92,10 @@ class Trainer(BaseTrainer):
                         epoch, self._progress(batch_idx), loss.item()
                     )
                 )
+                inputs = np.concatenate(data[:60].cpu().numpy(), axis=0)
+                output = np.concatenate(output[:60].detach().cpu().numpy(), axis=0)
+                images = make_plot_image_array(inputs, output)
+                self.writer.add_image("input", images, dataformats="HWC")
                 # self.writer.add_image("input", make_grid(data.cpu(), nrow=8, normalize=True))
             if batch_idx == self.len_epoch:
                 break

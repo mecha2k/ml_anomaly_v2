@@ -82,4 +82,4 @@ if __name__ == "__main__":
     config.device = device
 
     config.resume = main(config)
-    test_main(config)
+    # test_main(config)

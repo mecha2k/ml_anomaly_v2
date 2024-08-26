@@ -6,6 +6,7 @@ import model.loss as module_loss
 import model.metric as module_metric
 import model.model as module_model
 from parse_config import ConfigParser
+from utils import association_discrepancy
 
 
 def main(config):
@@ -40,22 +41,25 @@ def main(config):
 
     total_loss = 0.0
     total_metrics = torch.zeros(len(metric_fns))
+    win_size = config["data_loader"]["args"]["win_size"]
 
     with torch.no_grad():
         for i, (data, target) in enumerate(tqdm(data_loader)):
             data, target = data.to(device), target.to(device)
-            output = model(data)
-
-            #
-            # save sample images, or do something with output here
-            #
-
+            output, series, priors, _ = model(data)
+            # calculate Association discrepancy
+            series_loss = 0.0
+            for u in range(len(priors)):
+                s_loss, p_loss = association_discrepancy(series[u], priors[u], win_size)
+                series_loss += s_loss
+            series_loss = series_loss / len(priors)
+            reconstruction_loss = loss_fn(output, data)
+            loss = reconstruction_loss - config["trainer"]["k"] * series_loss
             # computing loss, metrics on test set
-            loss = loss_fn(output, target)
             batch_size = data.shape[0]
             total_loss += loss.item() * batch_size
             for j, metric in enumerate(metric_fns):
-                total_metrics[j] += metric(output, target) * batch_size
+                total_metrics[j] += metric(output, data) * batch_size
 
     n_samples = len(data_loader.sampler)
     log = {"loss": total_loss / n_samples}

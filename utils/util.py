@@ -1,5 +1,7 @@
 import torch
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import json
 import platform
 from pathlib import Path
@@ -68,9 +70,9 @@ class MetricTracker:
     def update(self, key, value, n=1):
         if self.writer is not None:
             self.writer.add_scalar(key, value)
-        self._data.total[key] += value * n
-        self._data.counts[key] += n
-        self._data.average[key] = self._data.total[key] / self._data.counts[key]
+        self._data.loc[key, "total"] += value * n
+        self._data.loc[key, "counts"] += n
+        self._data.loc[key, "average"] = self._data.total[key] / self._data.counts[key]
 
     def avg(self, key):
         return self._data.average[key]
@@ -109,3 +111,18 @@ def association_discrepancy_t(series, prior, win_size=100, temperature=50):
     series1 = my_kl_loss(series, (prior / prior_d).detach()) * temperature
     priors1 = my_kl_loss((prior / prior_d), series.detach()) * temperature
     return series1, priors1
+
+
+def make_plot_image_array(inputs, output):
+    fig, ax = plt.subplots(2, 1, figsize=(12, 6))
+    ax[0].set_ylim(0, 1.2)
+    ax[1].set_ylim(0, 1.2)
+    ax[0].plot(inputs)
+    ax[1].plot(output)
+    plt.close("all")
+
+    fig.canvas.draw()
+    buf = fig.canvas.tostring_rgb()
+    ncols, nrows = fig.canvas.get_width_height()
+    image = np.frombuffer(buf, dtype=np.uint8).reshape(nrows, ncols, 3)
+    return image
