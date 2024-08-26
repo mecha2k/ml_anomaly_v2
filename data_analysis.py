@@ -64,6 +64,50 @@ def anomaly_prediction(scores, piece=15):
     return mean_std, percentile
 
 
+def inference(model, data_loader, device="cuda"):
+    model.eval()
+    timestamps = []
+    distances = []
+    with torch.no_grad():
+        for batch in tqdm(data_loader, desc="Inference", unit="batch"):
+            inputs = batch["input"].to(device)
+            targets = batch["target"].to(device)
+            predictions = model(inputs)
+            timestamps.extend(batch["timestamps"])
+            distances.extend(torch.abs(targets - predictions).cpu().tolist())
+    return np.array(timestamps), np.array(distances)
+
+
+def final_submission(model, data_loader, device, data_path):
+    timestamps, distances = inference(model, data_loader, device=device)
+    anomaly_score = np.mean(distances, axis=1)
+    attacks = np.zeros_like(anomaly_score)
+    timestamps_raw = data_loader.test_df_raw["Timestamp"]
+
+    with open(data_path / "test_anomaly.pkl", "wb") as f:
+        data_dict = {
+            "timestamps": timestamps,
+            "anomaly_score": anomaly_score,
+            "attacks": attacks,
+            "timestamps_raw": timestamps_raw,
+        }
+        pickle.dump(data_dict, f)
+
+    image_path = Path("saved/images")
+    # threshold = np.percentile(anomaly_score, 99)
+    threshold = np.mean(anomaly_score) + 2 * np.std(anomaly_score)
+    print(f"mean-std based Threshold: {threshold}")
+    anomaly_score = fill_blank_data(timestamps, anomaly_score, np.array(timestamps_raw))
+    prediction = np.zeros_like(anomaly_score)
+    prediction[anomaly_score > threshold] = 1
+    check_graphs(anomaly_score, prediction, threshold=threshold, name=image_path / "test_anomaly")
+
+    sample_submission = pd.read_csv(data_path / "sample_submission.csv")
+    sample_submission["anomaly"] = prediction
+    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
+    print(sample_submission["anomaly"].value_counts())
+
+
 if __name__ == "__main__":
     data_path = Path("datasets/open")
     image_path = Path("saved/images")
