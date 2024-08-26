@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torchvision.utils import make_grid
 from base import BaseTrainer
-from utils import inf_loop, MetricTracker
+from utils import inf_loop, MetricTracker, association_discrepancy, association_discrepancy_t
 
 
 class Trainer(BaseTrainer):
@@ -23,6 +23,8 @@ class Trainer(BaseTrainer):
         self.config = config
         self.device = device
         self.data_loader = data_loader
+        self.k = self.config["trainer"]["k"]
+        self.win_size = self.config["data_loader"]["args"]["win_size"]
         if len_epoch is None:
             # epoch-based training
             self.len_epoch = len(self.data_loader)
@@ -45,36 +47,36 @@ class Trainer(BaseTrainer):
     def _train_epoch(self, epoch):
         self.model.train()
         self.train_metrics.reset()
+        train_loss = list()
         for batch_idx, (data, target) in enumerate(self.data_loader):
             data, target = data.to(self.device), target.to(self.device)
 
             self.optimizer.zero_grad()
             output, series, priors, _ = self.model(data)
-            loss = self.criterion(output, target)
-            loss.backward()
+
+            # calculate Association discrepancy
+            series_loss = 0.0
+            priors_loss = 0.0
+            for u in range(len(priors)):
+                s_loss, p_loss = association_discrepancy(series[u], priors[u], self.win_size)
+                series_loss += s_loss
+                priors_loss += p_loss
+            series_loss = series_loss / len(priors)
+            priors_loss = priors_loss / len(priors)
+
+            reconstruction_loss = self.criterion(output, data)
+            total_loss = reconstruction_loss - self.k * series_loss
+            train_loss.append(total_loss.item())
+
+            loss1 = reconstruction_loss - self.k * series_loss
+            loss2 = reconstruction_loss + self.k * priors_loss
+
+            loss1.backward(retain_graph=True)
+            loss2.backward()
             self.optimizer.step()
-            # iter_count += 1
-            # inputs = input_data.float().to(self.device)
-            #
-            # output, series, prior, _ = self.model(inputs)
-            # # calculate Association discrepancy
-            # series_loss = 0.0
-            # priors_loss = 0.0
-            # for u in range(len(prior)):
-            #     s_loss, p_loss = association_discrepancy(series[u], prior[u], self.win_size)
-            #     series_loss += s_loss
-            #     priors_loss += p_loss
-            # series_loss = series_loss / len(prior)
-            # priors_loss = priors_loss / len(prior)
-            #
-            # rec_loss = self.criterion(output, inputs)
-            #
-            # loss1_list.append((rec_loss - self.k * series_loss).item())
-            # loss1 = rec_loss - self.k * series_loss
-            # loss2 = rec_loss + self.k * priors_loss
 
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-            self.train_metrics.update("loss", loss.item())
+            self.train_metrics.update("loss", total_loss.item())
             for met in self.metric_ftns:
                 self.train_metrics.update(met.__name__, met(output, target))
 
@@ -85,17 +87,16 @@ class Trainer(BaseTrainer):
                     )
                 )
                 self.writer.add_image("input", make_grid(data.cpu(), nrow=8, normalize=True))
-
             if batch_idx == self.len_epoch:
                 break
-        log = self.train_metrics.result()
 
+        log = self.train_metrics.result()
         if self.do_validation:
             val_log = self._valid_epoch(epoch)
             log.update(**{"val_" + k: v for k, v in val_log.items()})
-
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
+
         return log
 
     def _valid_epoch(self, epoch):

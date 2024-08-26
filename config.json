@@ -2,7 +2,7 @@
     "name": "AnomalyTransformer",
     "n_gpu": 1,
 
-    "arch": {
+    "model": {
         "type": "TransformerModel",
         "args": {
             "enc_in": 51,
@@ -15,7 +15,8 @@
         "args":{
             "data_dir": "datasets/open",
             "batch_size": 256,
-            "win_size": 100
+            "win_size": 100,
+            "validation_split": 0.2
         }
     },
     "optimizer": {
@@ -26,7 +27,7 @@
             "amsgrad": false
         }
     },
-    "loss": "nll_loss",
+    "loss": "mse_loss",
     "metrics": [
         "accuracy", "top_k_acc"
     ],
@@ -39,6 +40,7 @@
     },
     "trainer": {
         "epochs": 10,
+        "k": 3,
 
         "save_dir": "saved/",
         "save_period": 1,

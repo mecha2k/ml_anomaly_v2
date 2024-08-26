@@ -77,3 +77,35 @@ class MetricTracker:
 
     def result(self):
         return dict(self._data.average)
+
+
+def my_kl_loss(p, q):
+    res = p * (torch.log(p + 0.0001) - torch.log(q + 0.0001))
+    return torch.mean(torch.sum(res, dim=-1), dim=1)
+
+
+def adjust_learning_rate(optimizer, epoch, lr_):
+    lr_adjust = {epoch: lr_ * (0.5 ** ((epoch - 1) // 1))}
+    if epoch in lr_adjust.keys():
+        lr = lr_adjust[epoch]
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = lr
+        print("Updating learning rate to {}".format(lr))
+
+
+def association_discrepancy(series, prior, win_size=100):
+    prior_d = torch.unsqueeze(torch.sum(prior, dim=-1), dim=-1)
+    prior_d = prior_d.repeat(1, 1, 1, win_size)
+    series1 = my_kl_loss(series, (prior / prior_d).detach())
+    series2 = my_kl_loss((prior / prior_d).detach(), series)
+    priors1 = my_kl_loss((prior / prior_d), series.detach())
+    priors2 = my_kl_loss(series.detach(), (prior / prior_d))
+    return torch.mean(series1 + series2), torch.mean(priors1 + priors2)
+
+
+def association_discrepancy_t(series, prior, win_size=100, temperature=50):
+    prior_d = torch.unsqueeze(torch.sum(prior, dim=-1), dim=-1)
+    prior_d = prior_d.repeat(1, 1, 1, win_size)
+    series1 = my_kl_loss(series, (prior / prior_d).detach()) * temperature
+    priors1 = my_kl_loss((prior / prior_d), series.detach()) * temperature
+    return series1, priors1

@@ -31,31 +31,34 @@ class HmcDataLoader(BaseDataLoader):
         batch_size,
         win_size=100,
         training=True,
+        validation_split=0.2,
     ):
         data_path = Path(data_dir)
         self.scaler = MinMaxScaler()
 
-        train_df_raw = pd.read_csv(data_path / "train.csv")
-        train_df_raw = train_df_raw[:1000]
-        data_columns = train_df_raw.columns.drop(["Timestamp", "anomaly"])
-        train_df = train_df_raw[data_columns].astype(float)
-        scaler = self.scaler.fit(train_df)
-        train = scaler.transform(train_df)
-        train_df = pd.DataFrame(train, columns=train_df.columns, index=list(train_df.index.values))
-        train_df = train_df.ewm(alpha=0.9).mean()
-        train_df.to_pickle(data_path / "train.pkl")
+        # train_df_raw = pd.read_csv(data_path / "train.csv")
+        # data_columns = train_df_raw.columns.drop(["Timestamp", "anomaly"])
+        # train_df = train_df_raw[data_columns].astype(float)
+        # scaler = self.scaler.fit(train_df)
+        # train = scaler.transform(train_df)
+        # train_df = pd.DataFrame(train, columns=train_df.columns, index=list(train_df.index.values))
+        # train_df = train_df.ewm(alpha=0.9).mean()
+        # train_df.to_pickle(data_path / "train.pkl")
+        #
+        # test_df_raw = pd.read_csv(data_path / "test.csv")
+        # test_df = test_df_raw[data_columns].astype(float)
+        # test = scaler.transform(test_df)
+        # test_df = pd.DataFrame(test, columns=test_df.columns, index=list(test_df.index.values))
+        # test_df = test_df.ewm(alpha=0.9).mean()
+        # test_df.to_pickle(data_path / "test.pkl")
+        # test_timestamps = test_df_raw["Timestamp"]
+        # test_timestamps.to_pickle(data_path / "test_timestamps.pkl")
 
-        test_df_raw = pd.read_csv(data_path / "test.csv")
-        test_df_raw = test_df_raw[:1000]
-        test_df = test_df_raw[data_columns].astype(float)
-        test = scaler.transform(test_df)
-        test_df = pd.DataFrame(test, columns=test_df.columns, index=list(test_df.index.values))
-        test_df = test_df.ewm(alpha=0.9).mean()
-        test_df.to_pickle(data_path / "test.pkl")
+        train_df = pd.read_pickle(data_path / "train.pkl")
+        test_df = pd.read_pickle(data_path / "test.pkl")
+        test_timestamps = pd.read_pickle(data_path / "test_timestamps.pkl")
 
-        self.train_df = train_df
-        self.test_df = test_df
-        self.test_timestamps = test_df_raw["Timestamp"]
+        self.test_timestamps = np.array(test_timestamps.values)
         self.train = np.array(train_df.values)
         self.test = np.array(test_df.values)
 
@@ -66,4 +69,4 @@ class HmcDataLoader(BaseDataLoader):
             shuffle = False
             self.dataset = HmcDataset(self.test, win_size)
 
-        super().__init__(self.dataset, batch_size, shuffle, validation_split=0.0)
+        super().__init__(self.dataset, batch_size, shuffle, validation_split=validation_split)
