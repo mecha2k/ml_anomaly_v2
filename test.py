@@ -1,14 +1,16 @@
-import argparse
-
-import numpy as np
 import torch
+import argparse
+import numpy as np
+import pandas as pd
 from tqdm import tqdm
+from pathlib import Path
+
 import data_loader.data_loaders as module_data
 import model.loss as module_loss
 import model.metric as module_metric
 import model.model as module_model
 from parse_config import ConfigParser
-from utils import association_discrepancy, anomaly_scores
+from utils import association_discrepancy, anomaly_scores, check_graphs_v1, check_graphs_v2
 
 
 def main(config):
@@ -66,10 +68,7 @@ def main(config):
     n_samples = len(data_loader.sampler)
     log = {"loss": total_loss / n_samples}
     log.update(
-        {
-            met.__name__: total_metrics[i].item() / n_samples
-            for i, met in enumerate(metric_fns)
-        }
+        {met.__name__: total_metrics[i].item() / n_samples for i, met in enumerate(metric_fns)}
     )
     logger.info(log)
 
@@ -79,28 +78,38 @@ def main(config):
         training=True,
     )
 
-    train_scores = anomaly_scores(
-        train_loader, model, device, loss_fn, win_size, temperature=50
-    )
-    test_scores = anomaly_scores(
-        data_loader, model, device, loss_fn, win_size, temperature=50
-    )
+    train_scores = anomaly_scores(train_loader, model, device, loss_fn, win_size, temperature=50)
+    test_scores = anomaly_scores(data_loader, model, device, loss_fn, win_size, temperature=50)
     combined_scores = np.concatenate([train_scores, test_scores], axis=0)
-    threshold = np.percentile(combined_scores, 100 - config["trainer"]["anomaly_ratio"])
-    print("Threshold :", threshold)
+    anomaly_ratio = config["trainer"]["anomaly_ratio"]
+    threshold = np.percentile(combined_scores, 100 - anomaly_ratio)
+    print(f"train data : {len(train_scores)}, test data : {len(test_scores)}")
+    print(f"Threshold with {100-anomaly_ratio}% percentile : {threshold}")
+
+    data_path = Path(config["data_loader"]["args"]["data_dir"])
+    image_path = Path("saved/images")
+
+    prediction = np.zeros_like(test_scores)
+    prediction[test_scores > threshold] = 1
+    check_graphs_v1(test_scores, prediction, threshold, name=image_path / "test_anomaly")
+
+    # train_df = pd.read_pickle(data_path / "train.pkl")
+    # train = train_df.values
+    # check_graphs_v2(train, np.zeros_like(train), img_path=image_path, mode="train")
+    test_df = pd.read_pickle(data_path / "test.pkl")
+    check_graphs_v2(test_df.values, prediction, test_scores, img_path=image_path, mode="test")
+
+    sample_submission = pd.read_csv(data_path / "sample_submission.csv")
+    sample_submission["anomaly"] = prediction
+    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
+    print(sample_submission["anomaly"].value_counts())
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="PyTorch Template")
-    args.add_argument(
-        "-c", "--config", default="config.json", type=str, help="config file path"
-    )
-    args.add_argument(
-        "-r", "--resume", default=None, type=str, help="path to latest checkpoint"
-    )
-    args.add_argument(
-        "-d", "--device", default=None, type=str, help="indices of GPUs to enable"
-    )
+    args.add_argument("-c", "--config", default="config.json", type=str, help="config file path")
+    args.add_argument("-r", "--resume", default=None, type=str, help="path to latest checkpoint")
+    args.add_argument("-d", "--device", default=None, type=str, help="indices of GPUs to enable")
 
     config = ConfigParser.from_args(args)
     main(config)

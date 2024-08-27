@@ -16,7 +16,7 @@
             "data_dir": "datasets/open",
             "batch_size": 256,
             "win_size": 100,
-            "validation_split": 0.2
+            "validation_split": 0.1
         }
     },
     "optimizer": {

@@ -34,7 +34,11 @@ def inf_loop(data_loader):
 
 def prepare_device(n_gpu_use):
     if platform.system() == "Darwin":
-        device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+        device = (
+            torch.device("mps")
+            if torch.backends.mps.is_available()
+            else torch.device("cpu")
+        )
         list_ids = list(range(n_gpu_use))
         print(f"{device} is available in torch")
         return device, list_ids

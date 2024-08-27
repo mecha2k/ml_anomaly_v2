@@ -31,7 +31,7 @@ class HmcDataLoader(BaseDataLoader):
         batch_size,
         win_size=100,
         training=True,
-        validation_split=0.2,
+        validation_split=0.0,
     ):
         data_path = Path(data_dir)
         self.scaler = MinMaxScaler()
@@ -69,4 +69,6 @@ class HmcDataLoader(BaseDataLoader):
             shuffle = False
             self.dataset = HmcDataset(self.test, win_size)
 
-        super().__init__(self.dataset, batch_size, shuffle, validation_split=validation_split)
+        super().__init__(
+            self.dataset, batch_size, shuffle, validation_split=validation_split
+        )

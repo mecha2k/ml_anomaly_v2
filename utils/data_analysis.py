@@ -93,7 +93,7 @@ def final_submission(model, data_loader, device, data_path):
         }
         pickle.dump(data_dict, f)
 
-    image_path = Path("saved/images")
+    image_path = Path("../saved/images")
     # threshold = np.percentile(anomaly_score, 99)
     threshold = np.mean(anomaly_score) + 2 * np.std(anomaly_score)
     print(f"mean-std based Threshold: {threshold}")
@@ -109,8 +109,8 @@ def final_submission(model, data_loader, device, data_path):
 
 
 if __name__ == "__main__":
-    data_path = Path("datasets/open")
-    image_path = Path("saved/images")
+    data_path = Path("../datasets/open")
+    image_path = Path("../saved/images")
 
     with open(data_path / "test_anomaly.pkl", "rb") as f:
         data_dict = pickle.load(f)
