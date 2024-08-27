@@ -118,18 +118,6 @@ if __name__ == "__main__":
     test_scores = data_dict["test_score"]
     threshold = data_dict["threshold"]
 
-    import seaborn as sns
-
-    # plt.plot(test_scores)
-    prediction = np.zeros_like(test_scores)
-    for i in range(len(test_scores)):
-        value = test_scores[i]
-        if value > threshold:
-            prediction[i] = 1
-    prediction = (test_scores > threshold).astype(int)
-    plt.plot(prediction)
-    plt.show()
-
     prediction = np.zeros_like(test_scores)
     prediction[test_scores > threshold] = 1
     preds_df = pd.DataFrame(prediction, columns=["anomaly"])
