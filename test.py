@@ -1,4 +1,6 @@
 import argparse
+
+import numpy as np
 import torch
 from tqdm import tqdm
 import data_loader.data_loaders as module_data
@@ -6,7 +8,7 @@ import model.loss as module_loss
 import model.metric as module_metric
 import model.model as module_model
 from parse_config import ConfigParser
-from utils import association_discrepancy
+from utils import association_discrepancy, anomaly_scores
 
 
 def main(config):
@@ -64,16 +66,41 @@ def main(config):
     n_samples = len(data_loader.sampler)
     log = {"loss": total_loss / n_samples}
     log.update(
-        {met.__name__: total_metrics[i].item() / n_samples for i, met in enumerate(metric_fns)}
+        {
+            met.__name__: total_metrics[i].item() / n_samples
+            for i, met in enumerate(metric_fns)
+        }
     )
     logger.info(log)
+
+    train_loader = getattr(module_data, config["data_loader"]["type"])(
+        config["data_loader"]["args"]["data_dir"],
+        batch_size=config["data_loader"]["args"]["batch_size"],
+        training=True,
+    )
+
+    train_scores = anomaly_scores(
+        train_loader, model, device, loss_fn, win_size, temperature=50
+    )
+    test_scores = anomaly_scores(
+        data_loader, model, device, loss_fn, win_size, temperature=50
+    )
+    combined_scores = np.concatenate([train_scores, test_scores], axis=0)
+    threshold = np.percentile(combined_scores, 100 - config["trainer"]["anomaly_ratio"])
+    print("Threshold :", threshold)
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="PyTorch Template")
-    args.add_argument("-c", "--config", default="config.json", type=str, help="config file path")
-    args.add_argument("-r", "--resume", default=None, type=str, help="path to latest checkpoint")
-    args.add_argument("-d", "--device", default=None, type=str, help="indices of GPUs to enable")
+    args.add_argument(
+        "-c", "--config", default="config.json", type=str, help="config file path"
+    )
+    args.add_argument(
+        "-r", "--resume", default=None, type=str, help="path to latest checkpoint"
+    )
+    args.add_argument(
+        "-d", "--device", default=None, type=str, help="indices of GPUs to enable"
+    )
 
     config = ConfigParser.from_args(args)
     main(config)

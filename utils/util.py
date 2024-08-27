@@ -126,3 +126,22 @@ def make_plot_image_array(inputs, output):
     ncols, nrows = fig.canvas.get_width_height()
     image = np.frombuffer(buf, dtype=np.uint8).reshape(nrows, ncols, 3)
     return image
+
+
+def anomaly_scores(data_loader, model, device, criterion, win_size, temperature=50):
+    scores = []
+    for i, (data, target) in enumerate(data_loader):
+        data, target = data.to(device), target.to(device)
+        output, series, prior, _ = model(data)
+        loss = torch.mean(criterion(data, output), dim=-1)
+        series_loss = 0.0
+        priors_loss = 0.0
+        for u in range(len(prior)):
+            s_loss, p_loss = association_discrepancy_t(
+                series[u], prior[u], win_size, temperature=temperature
+            )
+            series_loss += s_loss
+            priors_loss += p_loss
+        metric = torch.softmax((-series_loss - priors_loss), dim=-1)
+        scores.append((metric * loss).detach().cpu().numpy())
+    return np.concatenate(scores, axis=0).reshape(-1)
