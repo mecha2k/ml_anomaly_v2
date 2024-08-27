@@ -2,6 +2,7 @@ import torch
 import argparse
 import numpy as np
 import pandas as pd
+import pickle
 from tqdm import tqdm
 from pathlib import Path
 
@@ -89,13 +90,14 @@ def main(config):
     data_path = Path(config["data_loader"]["args"]["data_dir"])
     image_path = Path("saved/images")
 
+    with open(data_path / "test_anomaly.pkl", "wb") as f:
+        data_dict = {"test_score": test_scores, "threshold": threshold}
+        pickle.dump(data_dict, f)
+
     prediction = np.zeros_like(test_scores)
     prediction[test_scores > threshold] = 1
     check_graphs_v1(test_scores, prediction, threshold, name=image_path / "test_anomaly")
 
-    # train_df = pd.read_pickle(data_path / "train.pkl")
-    # train = train_df.values
-    # check_graphs_v2(train, np.zeros_like(train), img_path=image_path, mode="train")
     test_df = pd.read_pickle(data_path / "test.pkl")
     check_graphs_v2(test_df.values, prediction, test_scores, img_path=image_path, mode="test")
 

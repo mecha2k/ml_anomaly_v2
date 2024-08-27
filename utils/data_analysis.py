@@ -11,15 +11,16 @@ from datetime import datetime
 def check_graphs_v1(data, preds, threshold=None, name="default", piece=15):
     interval = len(data) // piece
     fig, axes = plt.subplots(piece, figsize=(20, 4 * piece))
+    # data_mean = np.round(data.mean() * 1.5, 3)
+    print(data.max(), data.min())
     for i in range(piece):
         start = i * interval
         end = min(start + interval, len(data))
-        xticks = range(start, end)
-        axes[i].set_ylim(0, 1)
-        axes[i].plot(xticks, preds[start:end])
-        axes[i].plot(xticks, data[start:end])
+        axes[i].set_ylim(0, 1.5)
+        axes[i].plot(data[start:end], color="blue")
+        axes[i].plot(preds[start:end], color="green")
         if threshold is not None:
-            axes[i].axhline(y=threshold, color="r")
+            axes[i].axhline(y=threshold, color="red")
     plt.tight_layout()
     plt.savefig(name)
     plt.close("all")
@@ -114,22 +115,33 @@ if __name__ == "__main__":
 
     with open(data_path / "test_anomaly.pkl", "rb") as f:
         data_dict = pickle.load(f)
+    test_scores = data_dict["test_score"]
+    threshold = data_dict["threshold"]
 
-    timestamps = data_dict["timestamps"]
-    timestamps_raw = data_dict["timestamps_raw"]
-    anomaly_score = data_dict["anomaly_score"]
+    import seaborn as sns
 
-    threshold = np.percentile(anomaly_score, 95)
-    anomaly_score = fill_blank_data(timestamps, anomaly_score, np.array(timestamps_raw))
-    prediction = np.zeros_like(anomaly_score)
-    prediction[anomaly_score > threshold] = 1
-    check_graphs_v1(anomaly_score, prediction, threshold, name=image_path / "test_anomaly")
+    # plt.plot(test_scores)
+    prediction = np.zeros_like(test_scores)
+    for i in range(len(test_scores)):
+        value = test_scores[i]
+        if value > threshold:
+            prediction[i] = 1
+    prediction = (test_scores > threshold).astype(int)
+    plt.plot(prediction)
+    plt.show()
+
+    prediction = np.zeros_like(test_scores)
+    prediction[test_scores > threshold] = 1
+    preds_df = pd.DataFrame(prediction, columns=["anomaly"])
+    print(preds_df["anomaly"].value_counts())
+    print(test_scores.max(), test_scores.min(), np.round(test_scores.mean(), 3), test_scores.std())
+    check_graphs_v1(test_scores, prediction, threshold, name=image_path / "test_anomaly")
 
     # train_df = pd.read_pickle(data_path / "train.pkl")
     # train = train_df.values
     # check_graphs_v2(train, np.zeros_like(train), img_path=image_path, mode="train")
     test_df = pd.read_pickle(data_path / "test.pkl")
-    check_graphs_v2(test_df.values, prediction, anomaly_score, img_path=image_path, mode="test")
+    check_graphs_v2(test_df.values, prediction, test_scores, img_path=image_path, mode="test")
 
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
     sample_submission["anomaly"] = prediction
