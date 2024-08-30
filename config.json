@@ -14,9 +14,10 @@
         "type": "HmcDataLoader",
         "args":{
             "data_dir": "datasets/open",
-            "batch_size": 256,
+            "batch_size": 32,
             "win_size": 100,
-            "validation_split": 0.1
+            "stride": 1,
+            "validation_split": 0.0
         }
     },
     "optimizer": {
@@ -38,8 +39,8 @@
     },
     "trainer": {
         "epochs": 10,
+        "anomaly_ratio": 0.1,
         "k": 3,
-        "anomaly_ratio": 1.0,
 
         "save_dir": "saved/",
         "save_period": 1,

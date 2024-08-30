@@ -10,15 +10,18 @@ from base import BaseDataLoader
 
 
 class HmcDataset(Dataset):
-    def __init__(self, data, win_size=100):
+    def __init__(self, data, win_size=100, stride=1):
         self.data = data
+        self.stride = stride
         self.win_size = win_size
+        if data.shape[0] < win_size:
+            self.win_size = data.shape[0]
 
     def __len__(self):
-        return (self.data.shape[0] - self.win_size) // self.win_size + 1
+        return (self.data.shape[0] - self.win_size) // self.stride + 1
 
     def __getitem__(self, index):
-        idx = index * self.win_size
+        idx = index * self.stride
         data = np.float32(self.data[idx : idx + self.win_size])
         target = np.zeros_like(data)
         return data, target
@@ -30,6 +33,7 @@ class HmcDataLoader(BaseDataLoader):
         data_dir,
         batch_size,
         win_size=100,
+        stride=1,
         training=True,
         validation_split=0.0,
     ):
@@ -57,6 +61,9 @@ class HmcDataLoader(BaseDataLoader):
         train_df = pd.read_pickle(data_path / "train.pkl")
         test_df = pd.read_pickle(data_path / "test.pkl")
         test_timestamps = pd.read_pickle(data_path / "test_timestamps.pkl")
+        train_df = train_df[:1000]
+        test_df = test_df[:1000]
+        test_timestamps = test_timestamps[:1000]
 
         self.test_timestamps = np.array(test_timestamps.values)
         self.train = np.array(train_df.values)
@@ -64,11 +71,9 @@ class HmcDataLoader(BaseDataLoader):
 
         if training:
             shuffle = True
-            self.dataset = HmcDataset(self.train, win_size)
+            self.dataset = HmcDataset(self.train, win_size, stride)
         else:
             shuffle = False
-            self.dataset = HmcDataset(self.test, win_size)
+            self.dataset = HmcDataset(self.test, win_size, stride)
 
-        super().__init__(
-            self.dataset, batch_size, shuffle, validation_split=validation_split
-        )
+        super().__init__(self.dataset, batch_size, shuffle, validation_split=validation_split)
