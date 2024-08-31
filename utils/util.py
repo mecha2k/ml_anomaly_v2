@@ -123,8 +123,8 @@ def make_plot_image_array(inputs, output):
     ax[1].set_ylim(0, 1.2)
     ax[0].plot(inputs)
     ax[1].plot(output)
-    ax[0].legend(["input (true)"])
-    ax[1].legend(["output (reconstructed)"])
+    ax[0].legend(["input (true)"], loc="upper right")
+    ax[1].legend(["output (reconstructed)"], loc="upper right")
     ax[0].grid()
     ax[1].grid()
     plt.close("all")
@@ -137,7 +137,8 @@ def make_plot_image_array(inputs, output):
 
 
 def anomaly_scores(data_loader, model, device, criterion, win_size, temperature=50):
-    scores = []
+    model.eval()
+    preds, ass_scores, rec_scores = [], [], []
     for i, (data, target) in enumerate(data_loader):
         data, target = data.to(device), target.to(device)
         output, series, prior, _ = model(data)
@@ -151,5 +152,39 @@ def anomaly_scores(data_loader, model, device, criterion, win_size, temperature=
             series_loss += s_loss
             priors_loss += p_loss
         metric = torch.softmax((-series_loss - priors_loss), dim=-1)
-        scores.append((metric * loss).detach().cpu().numpy())
-    return np.concatenate(scores, axis=0).reshape(-1)
+
+        output = output.detach().cpu().numpy()
+        association = (metric * loss).detach().cpu().numpy()
+        reconstruction = np.abs(output - data.detach().cpu().numpy())
+        output = np.concatenate(output, axis=0)
+        association = np.concatenate(association, axis=0)
+        reconstruction = np.concatenate(reconstruction, axis=0)
+        preds.append(output)
+        ass_scores.append(association)
+        rec_scores.append(reconstruction)
+    return (
+        np.concatenate(preds, axis=0),
+        [np.concatenate(ass_scores, axis=0), np.concatenate(rec_scores, axis=0)],
+    )
+
+    # def inference(model, data_loader, device="cuda"):
+    #     model.eval()
+    #     timestamps = []
+    #     distances = []
+    #     with torch.no_grad():
+    #         for batch in tqdm(data_loader, desc="Inference", unit="batch"):
+    #             inputs = batch["input"].to(device)
+    #             targets = batch["target"].to(device)
+    #             predictions = model(inputs)
+    #             timestamps.extend(batch["timestamps"])
+    #             distances.extend(torch.abs(targets - predictions).cpu().tolist())
+    #     return np.array(timestamps), np.array(distances)
+    # preds = []
+    # with torch.no_grad():
+    #     for i, (data, target) in enumerate(tqdm(train_loader)):
+    #         data, target = data.to(device), target.to(device)
+    #         output, _, _, _ = model(data)
+    #         data = output.cpu().numpy()
+    #         data = np.concatenate(data, axis=0)
+    #         preds.append(data)
+    # preds = np.concatenate(preds, axis=0)

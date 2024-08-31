@@ -67,12 +67,10 @@ class HmcDataLoader(BaseDataLoader):
         self.test = np.array(test_df.values)
 
         if training:
-            shuffle = True
             self.dataset = HmcDataset(self.train, win_size, stride)
         else:
-            shuffle = False
             self.dataset = HmcDataset(self.test, win_size, stride)
 
         super().__init__(
-            self.dataset, batch_size, shuffle, validation_split=validation_split
+            self.dataset, batch_size, shuffle=False, validation_split=validation_split
         )

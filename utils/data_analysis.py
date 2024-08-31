@@ -7,6 +7,8 @@ import pickle
 from pathlib import Path
 from datetime import datetime
 
+from sympy.abc import alpha
+
 
 def check_graphs_v1(data, preds, threshold=None, name="default", piece=15):
     interval = len(data) // piece
@@ -42,6 +44,78 @@ def check_graphs_v2(data, preds, anomaly, interval=10000, img_path=None, mode="t
         plt.plot(anomaly[start:end], color="blue", linewidth=5)
         plt.savefig(img_path / f"{mode}_raw_data" / f"raw_{i+1:02d}_pages")
         plt.close("all")
+
+
+def check_graphs_v3(
+    data, preds, scores, threshold=None, interval=10000, img_path=None, mode="train"
+):
+    plt.rcParams["font.size"] = 16
+    piece = len(data) // interval
+    for i in range(piece):
+        start = i * interval
+        end = min(start + interval, len(data))
+        xticks = range(start, end)
+        fig, axes = plt.subplots(3, figsize=(16, 12))
+        axes[0].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
+        axes[0].set_xticks(np.arange(start, end, step=interval // 10))
+        axes[0].set_ylim(-0.25, 1.25)
+        axes[0].plot(xticks, data[start:end])
+        axes[0].grid()
+        axes[0].legend([f"{mode} data (true)"], loc="upper right")
+        axes[1].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
+        axes[1].set_xticks(np.arange(start, end, step=interval // 10))
+        axes[1].set_ylim(-0.25, 1.25)
+        axes[1].plot(xticks, preds[start:end], alpha=1.0)
+        axes[1].grid()
+        axes[1].legend([f"{mode} data (reconstruction)"], loc="upper right")
+        axes[2].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
+        axes[2].set_xticks(np.arange(start, end, step=interval // 10))
+        axes[2].plot(xticks, scores[0][start:end], color="b", alpha=1)
+        axes[2].grid()
+        axes[2].legend([f"{mode} association"], loc="upper right")
+        axes[2].axhline(y=threshold, color="r", linewidth=5)
+        axes[2].set_ylabel("Association Scores")
+        twins = axes[2].twinx()
+        # twins.set_ylim(0, 1)
+        twins.plot(xticks, scores[1][start:end], color="g", alpha=0.1)
+        twins.set_ylabel("Reconstruction Scores")
+        plt.tight_layout()
+        fig.savefig(img_path / f"{mode}_preds_data" / f"pred_{i+1:02d}_pages")
+        if i == 2:
+            break
+
+        #
+        # start = i * interval
+        # end = min(start + interval, len(data))
+        # xticks = range(start, end)
+        # fig, ax1 = plt.subplots(figsize=(16, 8))
+        # ax1.set_ylim(-0.2, 1.2)
+        # ax1.set_xticks(np.arange(start, end, step=1000))
+        # ax1.grid()
+        # ax1.set_ylabel("Input Data")
+        # ax1.plot(xticks, data[start:end])
+        # ax2 = ax1.twinx()
+        # ax2.set_ylim(-0.2, 1.2)
+        # ax2.set_ylabel("Attack Labels")
+        # ax1.plot(xticks, labels[start:end], color="b", linewidth=6, alpha=0.5)
+        # fig.tight_layout()
+        # fig.savefig(img_path / f"swat_raw_data" / f"raw_{i+1:02d}_pages")
+    # plt.rcParams["font.size"] = 16
+    # fig = plt.figure(figsize=(12, 6))
+    # plt.ticklabel_format(style="scientific", axis="both", scilimits=(0, 0))
+    # xticks = range(0, len(data))
+    # plt.ylabel("Anomaly Score")
+    # plt.ylim(0, threshold * 2)
+    # plt.xticks(np.arange(0, len(data), step=50000), rotation=45)
+    # plt.plot(xticks, data_f, color="g")
+    # plt.plot(xticks, data, color="cyan", linewidth=2, alpha=0.3)
+    # plt.plot(xticks, preds, color="b", linestyle="solid", linewidth=2, alpha=0.3)
+    # if threshold is not None:
+    #     plt.axhline(y=threshold, color="r", linewidth=2)
+    # plt.grid()
+    # plt.legend(["Anomaly Score (detrend)", "Anomaly Score", "Prediction", "Threshold"])
+    # plt.tight_layout()
+    # fig.savefig(f"{name}_all")
 
 
 def fill_blank_data(timestamps, datasets, total_ts):
@@ -101,11 +175,15 @@ def final_submission(model, data_loader, device, data_path):
     anomaly_score = fill_blank_data(timestamps, anomaly_score, np.array(timestamps_raw))
     prediction = np.zeros_like(anomaly_score)
     prediction[anomaly_score > threshold] = 1
-    check_graphs(anomaly_score, prediction, threshold=threshold, name=image_path / "test_anomaly")
+    check_graphs(
+        anomaly_score, prediction, threshold=threshold, name=image_path / "test_anomaly"
+    )
 
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
     sample_submission["anomaly"] = prediction
-    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
+    sample_submission.to_csv(
+        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
+    )
     print(sample_submission["anomaly"].value_counts())
 
 
@@ -122,16 +200,27 @@ if __name__ == "__main__":
     prediction[test_scores > threshold] = 1
     preds_df = pd.DataFrame(prediction, columns=["anomaly"])
     print(preds_df["anomaly"].value_counts())
-    print(test_scores.max(), test_scores.min(), np.round(test_scores.mean(), 3), test_scores.std())
-    check_graphs_v1(test_scores, prediction, threshold, name=image_path / "test_anomaly")
+    print(
+        test_scores.max(),
+        test_scores.min(),
+        np.round(test_scores.mean(), 3),
+        test_scores.std(),
+    )
+    check_graphs_v1(
+        test_scores, prediction, threshold, name=image_path / "test_anomaly"
+    )
 
     # train_df = pd.read_pickle(data_path / "train.pkl")
     # train = train_df.values
     # check_graphs_v2(train, np.zeros_like(train), img_path=image_path, mode="train")
     test_df = pd.read_pickle(data_path / "test.pkl")
-    check_graphs_v2(test_df.values, prediction, test_scores, img_path=image_path, mode="test")
+    check_graphs_v2(
+        test_df.values, prediction, test_scores, img_path=image_path, mode="test"
+    )
 
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
     sample_submission["anomaly"] = prediction
-    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
+    sample_submission.to_csv(
+        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
+    )
     print(sample_submission["anomaly"].value_counts())

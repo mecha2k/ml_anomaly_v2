@@ -16,6 +16,7 @@ from utils import (
     anomaly_scores,
     check_graphs_v1,
     check_graphs_v2,
+    check_graphs_v3,
 )
 
 
@@ -23,9 +24,10 @@ def main(config):
     logger = config.get_logger("test")
 
     # setup data_loader instances
-    data_loader = getattr(module_data, config["data_loader"]["type"])(
+    test_loader = getattr(module_data, config["data_loader"]["type"])(
         config["data_loader"]["args"]["data_dir"],
         batch_size=config["data_loader"]["args"]["batch_size"],
+        stride=config["data_loader"]["args"]["win_size"],
         training=False,
     )
 
@@ -53,26 +55,26 @@ def main(config):
     total_metrics = torch.zeros(len(metric_fns))
     win_size = config["data_loader"]["args"]["win_size"]
 
-    with torch.no_grad():
-        for i, (data, target) in enumerate(tqdm(data_loader)):
-            data, target = data.to(device), target.to(device)
-            output, series, priors, _ = model(data)
-            # calculate Association discrepancy
-            series_loss = 0.0
-            for u in range(len(priors)):
-                s_loss, p_loss = association_discrepancy(series[u], priors[u], win_size)
-                series_loss += s_loss
-            series_loss = series_loss / len(priors)
-            reconstruction_loss = loss_fn(output, data)
-            loss = reconstruction_loss - config["trainer"]["k"] * series_loss
-            # computing loss, metrics on test set
-            batch_size = data.shape[0]
-            total_loss += loss.item() * batch_size
-            met_values = [reconstruction_loss.item(), series_loss.item()]
-            for j, metric in enumerate(metric_fns):
-                total_metrics[j] += metric(met_values) * batch_size
+    # with torch.no_grad():
+    #     for i, (data, target) in enumerate(tqdm(test_loader)):
+    #         data, target = data.to(device), target.to(device)
+    #         output, series, priors, _ = model(data)
+    #         # calculate Association discrepancy
+    #         series_loss = 0.0
+    #         for u in range(len(priors)):
+    #             s_loss, p_loss = association_discrepancy(series[u], priors[u], win_size)
+    #             series_loss += s_loss
+    #         series_loss = series_loss / len(priors)
+    #         reconstruction_loss = loss_fn(output, data)
+    #         loss = reconstruction_loss - config["trainer"]["k"] * series_loss
+    #         # computing loss, metrics on test set
+    #         batch_size = data.shape[0]
+    #         total_loss += loss.item() * batch_size
+    #         met_values = [reconstruction_loss.item(), series_loss.item()]
+    #         for j, metric in enumerate(metric_fns):
+    #             total_metrics[j] += metric(met_values) * batch_size
 
-    n_samples = len(data_loader.sampler)
+    n_samples = len(test_loader.sampler)
     log = {"loss": total_loss / n_samples}
     log.update(
         {
@@ -85,45 +87,82 @@ def main(config):
     train_loader = getattr(module_data, config["data_loader"]["type"])(
         config["data_loader"]["args"]["data_dir"],
         batch_size=config["data_loader"]["args"]["batch_size"],
+        stride=config["data_loader"]["args"]["win_size"],
         training=True,
     )
 
-    train_scores = anomaly_scores(
+    # preds = []
+    # with torch.no_grad():
+    #     for i, (data, target) in enumerate(tqdm(train_loader)):
+    #         data, target = data.to(device), target.to(device)
+    #         output, _, _, _ = model(data)
+    #         data = output.cpu().numpy()
+    #         data = np.concatenate(data, axis=0)
+    #         preds.append(data)
+    # preds = np.concatenate(preds, axis=0)
+
+    # check_graphs_v3(
+    #     train_loader.train, preds, img_path=Path("saved/images"), mode="train"
+    # )
+
+    # fig = plt.figure(figsize=(12, 6))
+    # plt.ylim(0, 1)
+    # plt.plot(data[:3200])
+    # fig.savefig("saved/images/test_loader_samples.png")
+    #
+    # print("-" * 100)
+    # fig = plt.figure(figsize=(12, 6))
+    # plt.ylim(0, 1)
+    # plt.plot(train_loader.train[:3200])
+    # fig.savefig("saved/images/test_data_samples.png")
+    #
+
+    train_preds, train_scores = anomaly_scores(
         train_loader, model, device, loss_fn, win_size, temperature=50
     )
-    test_scores = anomaly_scores(
-        data_loader, model, device, loss_fn, win_size, temperature=50
-    )
-    combined_scores = np.concatenate([train_scores, test_scores], axis=0)
-    anomaly_ratio = config["trainer"]["anomaly_ratio"]
-    threshold = np.percentile(combined_scores, 100 - anomaly_ratio)
-    print(f"train data : {len(train_scores)}, test data : {len(test_scores)}")
-    print(f"Threshold with {100-anomaly_ratio}% percentile : {threshold}")
-
-    data_path = Path(config["data_loader"]["args"]["data_dir"])
-    image_path = Path("saved/images")
-
-    with open(data_path / "test_anomaly.pkl", "wb") as f:
-        data_dict = {"test_score": test_scores, "threshold": threshold}
-        pickle.dump(data_dict, f)
-
-    prediction = np.zeros_like(test_scores)
-    prediction[test_scores > threshold] = 1
-    check_graphs_v1(
-        test_scores, prediction, threshold, name=image_path / "test_anomaly"
+    # test_preds, test_scores = anomaly_scores(
+    #     test_loader, model, device, loss_fn, win_size, temperature=50
+    # )
+    # combined_scores = np.concatenate([train_scores, test_scores], axis=0)
+    # anomaly_ratio = config["trainer"]["anomaly_ratio"]
+    # threshold = np.percentile(combined_scores, 100 - anomaly_ratio)
+    # print(f"train data : {len(train_scores)}, test data : {len(test_scores)}")
+    # print(f"Threshold with {100-anomaly_ratio}% percentile : {threshold}")
+    #
+    check_graphs_v3(
+        train_loader.train,
+        train_preds,
+        train_scores,
+        threshold=0.0,
+        img_path=Path("saved/images"),
+        mode="train",
     )
 
-    test_df = pd.read_pickle(data_path / "test.pkl")
-    check_graphs_v2(
-        test_df.values, prediction, test_scores, img_path=image_path, mode="test"
-    )
-
-    sample_submission = pd.read_csv(data_path / "sample_submission.csv")
-    sample_submission["anomaly"] = prediction
-    sample_submission.to_csv(
-        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
-    )
-    print(sample_submission["anomaly"].value_counts())
+    #
+    # data_path = Path(config["data_loader"]["args"]["data_dir"])
+    # image_path = Path("saved/images")
+    #
+    # with open(data_path / "test_anomaly.pkl", "wb") as f:
+    #     data_dict = {"test_score": test_scores, "threshold": threshold}
+    #     pickle.dump(data_dict, f)
+    #
+    # prediction = np.zeros_like(test_scores)
+    # prediction[test_scores > threshold] = 1
+    # check_graphs_v1(
+    #     test_scores, prediction, threshold, name=image_path / "test_anomaly"
+    # )
+    #
+    # test_df = pd.read_pickle(data_path / "test.pkl")
+    # check_graphs_v2(
+    #     test_df.values, prediction, test_scores, img_path=image_path, mode="test"
+    # )
+    #
+    # sample_submission = pd.read_csv(data_path / "sample_submission.csv")
+    # sample_submission["anomaly"] = prediction
+    # sample_submission.to_csv(
+    #     data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
+    # )
+    # print(sample_submission["anomaly"].value_counts())
 
 
 if __name__ == "__main__":
