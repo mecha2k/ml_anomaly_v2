@@ -26,15 +26,6 @@ def main(config):
     data_loader = config.init_obj("data_loader", module_data)
     valid_data_loader = data_loader.split_validation()
 
-    inputs, target = next(iter(data_loader))
-    print(f"Data shape: {inputs.shape}, Target shape: {target.shape}")
-    print(inputs.numpy().flatten()[:50])
-
-    import matplotlib.pyplot as plt
-
-    plt.hist(inputs.numpy().flatten()[:500000])
-    plt.show()
-
     # build model architecture, then print to console
     model = config.init_obj("model", module_model)
     logger.info(model)

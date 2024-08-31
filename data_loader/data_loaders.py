@@ -61,9 +61,6 @@ class HmcDataLoader(BaseDataLoader):
         train_df = pd.read_pickle(data_path / "train.pkl")
         test_df = pd.read_pickle(data_path / "test.pkl")
         test_timestamps = pd.read_pickle(data_path / "test_timestamps.pkl")
-        train_df = train_df[:1000]
-        test_df = test_df[:1000]
-        test_timestamps = test_timestamps[:1000]
 
         self.test_timestamps = np.array(test_timestamps.values)
         self.train = np.array(train_df.values)
@@ -76,4 +73,6 @@ class HmcDataLoader(BaseDataLoader):
             shuffle = False
             self.dataset = HmcDataset(self.test, win_size, stride)
 
-        super().__init__(self.dataset, batch_size, shuffle, validation_split=validation_split)
+        super().__init__(
+            self.dataset, batch_size, shuffle, validation_split=validation_split
+        )

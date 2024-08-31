@@ -18,3 +18,11 @@ def top_k_acc(output, target, k=3):
         for i in range(k):
             correct += torch.sum(pred[:, i] == target).item()
     return correct / len(target)
+
+
+def rec_loss(metric):
+    return metric[0]
+
+
+def ass_dis(metric):
+    return metric[1]
