@@ -84,39 +84,6 @@ def check_graphs_v3(
         if i == 2:
             break
 
-        #
-        # start = i * interval
-        # end = min(start + interval, len(data))
-        # xticks = range(start, end)
-        # fig, ax1 = plt.subplots(figsize=(16, 8))
-        # ax1.set_ylim(-0.2, 1.2)
-        # ax1.set_xticks(np.arange(start, end, step=1000))
-        # ax1.grid()
-        # ax1.set_ylabel("Input Data")
-        # ax1.plot(xticks, data[start:end])
-        # ax2 = ax1.twinx()
-        # ax2.set_ylim(-0.2, 1.2)
-        # ax2.set_ylabel("Attack Labels")
-        # ax1.plot(xticks, labels[start:end], color="b", linewidth=6, alpha=0.5)
-        # fig.tight_layout()
-        # fig.savefig(img_path / f"swat_raw_data" / f"raw_{i+1:02d}_pages")
-    # plt.rcParams["font.size"] = 16
-    # fig = plt.figure(figsize=(12, 6))
-    # plt.ticklabel_format(style="scientific", axis="both", scilimits=(0, 0))
-    # xticks = range(0, len(data))
-    # plt.ylabel("Anomaly Score")
-    # plt.ylim(0, threshold * 2)
-    # plt.xticks(np.arange(0, len(data), step=50000), rotation=45)
-    # plt.plot(xticks, data_f, color="g")
-    # plt.plot(xticks, data, color="cyan", linewidth=2, alpha=0.3)
-    # plt.plot(xticks, preds, color="b", linestyle="solid", linewidth=2, alpha=0.3)
-    # if threshold is not None:
-    #     plt.axhline(y=threshold, color="r", linewidth=2)
-    # plt.grid()
-    # plt.legend(["Anomaly Score (detrend)", "Anomaly Score", "Prediction", "Threshold"])
-    # plt.tight_layout()
-    # fig.savefig(f"{name}_all")
-
 
 def fill_blank_data(timestamps, datasets, total_ts):
     # create dataframes with total_ts index and 0 values
