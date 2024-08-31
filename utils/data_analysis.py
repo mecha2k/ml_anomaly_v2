@@ -68,21 +68,21 @@ def check_graphs_v3(
         axes[1].plot(xticks, preds[start:end], alpha=1.0)
         axes[1].grid()
         axes[1].legend([f"{mode} data (reconstruction)"], loc="upper right")
-        axes[2].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
+        axes[2].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
         axes[2].set_xticks(np.arange(start, end, step=interval // 10))
+        axes[2].set_ylim(0, 0.3)
         axes[2].plot(xticks, scores[0][start:end], color="b", alpha=1)
         axes[2].grid()
         axes[2].legend([f"{mode} association"], loc="upper right")
         axes[2].axhline(y=threshold, color="r", linewidth=5)
         axes[2].set_ylabel("Association Scores")
         twins = axes[2].twinx()
-        # twins.set_ylim(0, 1)
+        twins.set_ylim(0, 0.3)
         twins.plot(xticks, scores[1][start:end], color="g", alpha=0.1)
         twins.set_ylabel("Reconstruction Scores")
         plt.tight_layout()
         fig.savefig(img_path / f"{mode}_preds_data" / f"pred_{i+1:02d}_pages")
-        if i == 2:
-            break
+        plt.close("all")
 
 
 def fill_blank_data(timestamps, datasets, total_ts):

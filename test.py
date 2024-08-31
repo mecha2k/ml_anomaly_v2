@@ -2,6 +2,7 @@ import torch
 import argparse
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import pickle
 from tqdm import tqdm
 from pathlib import Path
@@ -118,25 +119,48 @@ def main(config):
     #
 
     train_preds, train_scores = anomaly_scores(
-        train_loader, model, device, loss_fn, win_size, temperature=50
+        train_loader, model, device, win_size, temperature=50
     )
-    # test_preds, test_scores = anomaly_scores(
-    #     test_loader, model, device, loss_fn, win_size, temperature=50
-    # )
-    # combined_scores = np.concatenate([train_scores, test_scores], axis=0)
-    # anomaly_ratio = config["trainer"]["anomaly_ratio"]
-    # threshold = np.percentile(combined_scores, 100 - anomaly_ratio)
-    # print(f"train data : {len(train_scores)}, test data : {len(test_scores)}")
-    # print(f"Threshold with {100-anomaly_ratio}% percentile : {threshold}")
-    #
+    test_preds, test_scores = anomaly_scores(
+        test_loader, model, device, win_size, temperature=50
+    )
+    # combined_assoc = np.concatenate([train_scores[0], test_scores[0]], axis=0)
+    # combined_recon = np.concatenate([train_scores[1], test_scores[1]], axis=0)
+    anomaly_ratio = config["trainer"]["anomaly_ratio"]
+    threshold = np.percentile(test_scores[0], 100 - anomaly_ratio)
+    print(f"train data : {len(train_scores[0])}, test data : {len(test_scores[0])}")
+    print(f"mean association discrepancy : {np.mean(test_scores[0])}")
+    print(f"mean reconstruction error : {np.mean(test_scores[1])}")
+    print(f"Threshold with {100-anomaly_ratio}% percentile : {threshold:.4e}")
+
     check_graphs_v3(
         train_loader.train,
         train_preds,
         train_scores,
-        threshold=0.0,
+        threshold=0.30,
         img_path=Path("saved/images"),
         mode="train",
     )
+    check_graphs_v3(
+        test_loader.test,
+        test_preds,
+        test_scores,
+        threshold=0.03,
+        img_path=Path("saved/images"),
+        mode="test",
+    )
+
+    fig, axes = plt.subplots(2, 1, figsize=(12, 6))
+    # fig.subtitle("Anomaly Scores Histogram")
+    axes[0].set_ylabel("Association Discrepancy")
+    axes[0].set_ylim(0, 0.3)
+    axes[0].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
+    axes[0].plot(test_scores[0], color="b")
+    axes[1].set_ylabel("Reconstruction Error")
+    axes[1].set_ylim(0, 0.3)
+    axes[1].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
+    axes[1].plot(test_scores[1], color="g")
+    fig.savefig("saved/images/anomaly_scores_plot.png")
 
     #
     # data_path = Path(config["data_loader"]["args"]["data_dir"])

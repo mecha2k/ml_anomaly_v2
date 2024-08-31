@@ -136,8 +136,9 @@ def make_plot_image_array(inputs, output):
     return image
 
 
-def anomaly_scores(data_loader, model, device, criterion, win_size, temperature=50):
+def anomaly_scores(data_loader, model, device, win_size, temperature=50):
     model.eval()
+    criterion = torch.nn.MSELoss(reduction="none")
     preds, ass_scores, rec_scores = [], [], []
     for i, (data, target) in enumerate(data_loader):
         data, target = data.to(device), target.to(device)
@@ -152,10 +153,9 @@ def anomaly_scores(data_loader, model, device, criterion, win_size, temperature=
             series_loss += s_loss
             priors_loss += p_loss
         metric = torch.softmax((-series_loss - priors_loss), dim=-1)
-
         output = output.detach().cpu().numpy()
         association = (metric * loss).detach().cpu().numpy()
-        reconstruction = np.abs(output - data.detach().cpu().numpy())
+        reconstruction = np.abs(output - data.detach().cpu().numpy()).mean(axis=-1)
         output = np.concatenate(output, axis=0)
         association = np.concatenate(association, axis=0)
         reconstruction = np.concatenate(reconstruction, axis=0)
