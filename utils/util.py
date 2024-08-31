@@ -123,6 +123,10 @@ def make_plot_image_array(inputs, output):
     ax[1].set_ylim(0, 1.2)
     ax[0].plot(inputs)
     ax[1].plot(output)
+    ax[0].legend(["input (true)"])
+    ax[1].legend(["output (reconstructed)"])
+    ax[0].grid()
+    ax[1].grid()
     plt.close("all")
 
     fig.canvas.draw()
