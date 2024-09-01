@@ -57,6 +57,10 @@ def check_graphs_v3(
     mode="train",
 ):
     plt.rcParams["font.size"] = 16
+    save_dir = img_path / f"{mode}_preds_data"
+    if not save_dir.exists():
+        save_dir.mkdir(parents=True)
+
     piece = len(data) // interval
     for i in range(piece):
         start = i * interval
@@ -90,7 +94,7 @@ def check_graphs_v3(
         twins.plot(xticks, scores[1][start:end], color="g", alpha=0.6)
         twins.set_ylabel("Reconstruction Scores")
         plt.tight_layout()
-        fig.savefig(img_path / f"{mode}_preds_data" / f"pred_{i+1:02d}_pages")
+        fig.savefig(save_dir / f"pred_{i+1:02d}_pages")
         plt.close("all")
 
 
@@ -151,15 +155,11 @@ def final_submission(model, data_loader, device, data_path):
     anomaly_score = fill_blank_data(timestamps, anomaly_score, np.array(timestamps_raw))
     prediction = np.zeros_like(anomaly_score)
     prediction[anomaly_score > threshold] = 1
-    check_graphs(
-        anomaly_score, prediction, threshold=threshold, name=image_path / "test_anomaly"
-    )
+    check_graphs(anomaly_score, prediction, threshold=threshold, name=image_path / "test_anomaly")
 
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
     sample_submission["anomaly"] = prediction
-    sample_submission.to_csv(
-        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
-    )
+    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
     print(sample_submission["anomaly"].value_counts())
 
 
@@ -182,21 +182,15 @@ if __name__ == "__main__":
         np.round(test_scores.mean(), 3),
         test_scores.std(),
     )
-    check_graphs_v1(
-        test_scores, prediction, threshold, name=image_path / "test_anomaly"
-    )
+    check_graphs_v1(test_scores, prediction, threshold, name=image_path / "test_anomaly")
 
     # train_df = pd.read_pickle(data_path / "train.pkl")
     # train = train_df.values
     # check_graphs_v2(train, np.zeros_like(train), img_path=image_path, mode="train")
     test_df = pd.read_pickle(data_path / "test.pkl")
-    check_graphs_v2(
-        test_df.values, prediction, test_scores, img_path=image_path, mode="test"
-    )
+    check_graphs_v2(test_df.values, prediction, test_scores, img_path=image_path, mode="test")
 
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
     sample_submission["anomaly"] = prediction
-    sample_submission.to_csv(
-        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
-    )
+    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
     print(sample_submission["anomaly"].value_counts())

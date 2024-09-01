@@ -41,8 +41,7 @@ def main(config):
     metric_fns = [getattr(module_metric, met) for met in config["metrics"]]
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # device = torch.device("mps" if torch.backends.mps.is_available() else device)
-    print(f"Using device: {device}")
+    device = torch.device("mps" if torch.backends.mps.is_available() else device)
 
     logger.info("Loading checkpoint: {} ...".format(config.resume))
     checkpoint = torch.load(Path(config.resume), map_location=device)
@@ -57,32 +56,29 @@ def main(config):
     total_metrics = torch.zeros(len(metric_fns))
     win_size = config["data_loader"]["args"]["win_size"]
 
-    # with torch.no_grad():
-    #     for i, (data, target) in enumerate(tqdm(test_loader)):
-    #         data, target = data.to(device), target.to(device)
-    #         output, series, priors, _ = model(data)
-    #         # calculate Association discrepancy
-    #         series_loss = 0.0
-    #         for u in range(len(priors)):
-    #             s_loss, p_loss = association_discrepancy(series[u], priors[u], win_size)
-    #             series_loss += s_loss
-    #         series_loss = series_loss / len(priors)
-    #         reconstruction_loss = loss_fn(output, data)
-    #         loss = reconstruction_loss - config["trainer"]["k"] * series_loss
-    #         # computing loss, metrics on test set
-    #         batch_size = data.shape[0]
-    #         total_loss += loss.item() * batch_size
-    #         met_values = [reconstruction_loss.item(), series_loss.item()]
-    #         for j, metric in enumerate(metric_fns):
-    #             total_metrics[j] += metric(met_values) * batch_size
+    with torch.no_grad():
+        for i, (data, target) in enumerate(tqdm(test_loader)):
+            data, target = data.to(device), target.to(device)
+            output, series, priors, _ = model(data)
+            # calculate Association discrepancy
+            series_loss = 0.0
+            for u in range(len(priors)):
+                s_loss, p_loss = association_discrepancy(series[u], priors[u], win_size)
+                series_loss += s_loss
+            series_loss = series_loss / len(priors)
+            reconstruction_loss = loss_fn(output, data)
+            loss = reconstruction_loss - config["trainer"]["k"] * series_loss
+            # computing loss, metrics on test set
+            batch_size = data.shape[0]
+            total_loss += loss.item() * batch_size
+            met_values = [reconstruction_loss.item(), series_loss.item()]
+            for j, metric in enumerate(metric_fns):
+                total_metrics[j] += metric(met_values) * batch_size
 
     n_samples = len(test_loader.sampler)
     log = {"loss": total_loss / n_samples}
     log.update(
-        {
-            met.__name__: total_metrics[i].item() / n_samples
-            for i, met in enumerate(metric_fns)
-        }
+        {met.__name__: total_metrics[i].item() / n_samples for i, met in enumerate(metric_fns)}
     )
     logger.info(log)
 
@@ -96,9 +92,7 @@ def main(config):
     train_preds, train_scores = anomaly_scores(
         train_loader, model, device, win_size, temperature=50
     )
-    test_preds, test_scores = anomaly_scores(
-        test_loader, model, device, win_size, temperature=50
-    )
+    test_preds, test_scores = anomaly_scores(test_loader, model, device, win_size, temperature=50)
     # combined_assoc = np.concatenate([train_scores[0], test_scores[0]], axis=0)
     # combined_recon = np.concatenate([train_scores[1], test_scores[1]], axis=0)
     anomaly_ratio = config["trainer"]["anomaly_ratio"]
@@ -143,23 +137,15 @@ def main(config):
 
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
     sample_submission["anomaly"] = anomalies
-    sample_submission.to_csv(
-        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
-    )
+    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
     print(sample_submission["anomaly"].value_counts())
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="PyTorch Template")
-    args.add_argument(
-        "-c", "--config", default="config.json", type=str, help="config file path"
-    )
-    args.add_argument(
-        "-r", "--resume", default=None, type=str, help="path to latest checkpoint"
-    )
-    args.add_argument(
-        "-d", "--device", default=None, type=str, help="indices of GPUs to enable"
-    )
+    args.add_argument("-c", "--config", default="config.json", type=str, help="config file path")
+    args.add_argument("-r", "--resume", default=None, type=str, help="path to latest checkpoint")
+    args.add_argument("-d", "--device", default=None, type=str, help="indices of GPUs to enable")
 
     config = ConfigParser.from_args(args)
     main(config)
