@@ -103,8 +103,6 @@ def main(config):
     print(f"Threshold with {100-anomaly_ratio}% percentile : {threshold:.4e}")
 
 
-
-
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="PyTorch Template")
     args.add_argument("-c", "--config", default="config.json", type=str, help="config file path")
