@@ -5,8 +5,8 @@
     "model": {
         "type": "TransformerModel",
         "args": {
-            "enc_in": 51,
-            "c_out": 51,
+            "enc_in": 49,
+            "c_out": 49,
             "win_size": 100
         }
     },
@@ -35,21 +35,21 @@
     "lr_scheduler": {
         "type": "StepLR",
         "args": {
-            "step_size": 1,
+            "step_size": 100,
             "gamma": 0.5
         }
     },
     "trainer": {
-        "epochs": 10,
+        "epochs": 100,
         "anomaly_ratio": 10,
         "k": 3,
 
         "save_dir": "saved/",
-        "save_period": 1,
+        "save_period": 2,
         "verbosity": 2,
         
-        "monitor": "min rec_loss",
-        "early_stop": 10,
+        "monitor": "min loss",
+        "early_stop": 2000,
 
         "tensorboard": true
     }
