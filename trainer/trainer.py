@@ -74,9 +74,9 @@ class Trainer(BaseTrainer):
 
             reconstruction_loss = self.criterion(output, data)
             # total loss : minmax association learning
-            loss = reconstruction_loss - self.k * series_loss
+            loss = (reconstruction_loss - self.k * series_loss).item()
 
-            loss1 = loss
+            loss1 = reconstruction_loss - self.k * series_loss
             loss2 = reconstruction_loss + self.k * priors_loss
 
             loss1.backward(retain_graph=True)
@@ -84,7 +84,7 @@ class Trainer(BaseTrainer):
             self.optimizer.step()
 
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-            self.train_metrics.update("loss", loss.item())
+            self.train_metrics.update("loss", loss)
             met_values = [reconstruction_loss.item(), series_loss.item()]
             for met in self.metric_ftns:
                 self.train_metrics.update(met.__name__, met(met_values))
