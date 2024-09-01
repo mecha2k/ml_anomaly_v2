@@ -79,7 +79,10 @@ def main(config):
     n_samples = len(test_loader.sampler)
     log = {"loss": total_loss / n_samples}
     log.update(
-        {met.__name__: total_metrics[i].item() / n_samples for i, met in enumerate(metric_fns)}
+        {
+            met.__name__: total_metrics[i].item() / n_samples
+            for i, met in enumerate(metric_fns)
+        }
     )
     logger.info(log)
 
@@ -90,40 +93,16 @@ def main(config):
         training=True,
     )
 
-    # preds = []
-    # with torch.no_grad():
-    #     for i, (data, target) in enumerate(tqdm(train_loader)):
-    #         data, target = data.to(device), target.to(device)
-    #         output, _, _, _ = model(data)
-    #         data = output.cpu().numpy()
-    #         data = np.concatenate(data, axis=0)
-    #         preds.append(data)
-    # preds = np.concatenate(preds, axis=0)
-
-    # check_graphs_v3(
-    #     train_loader.train, preds, img_path=Path("saved/images"), mode="train"
-    # )
-
-    # fig = plt.figure(figsize=(12, 6))
-    # plt.ylim(0, 1)
-    # plt.plot(data[:3200])
-    # fig.savefig("saved/images/test_loader_samples.png")
-    #
-    # print("-" * 100)
-    # fig = plt.figure(figsize=(12, 6))
-    # plt.ylim(0, 1)
-    # plt.plot(train_loader.train[:3200])
-    # fig.savefig("saved/images/test_data_samples.png")
-    #
-
     train_preds, train_scores = anomaly_scores(
         train_loader, model, device, win_size, temperature=50
     )
-    test_preds, test_scores = anomaly_scores(test_loader, model, device, win_size, temperature=50)
+    test_preds, test_scores = anomaly_scores(
+        test_loader, model, device, win_size, temperature=50
+    )
     # combined_assoc = np.concatenate([train_scores[0], test_scores[0]], axis=0)
     # combined_recon = np.concatenate([train_scores[1], test_scores[1]], axis=0)
     anomaly_ratio = config["trainer"]["anomaly_ratio"]
-    threshold = np.percentile(test_scores[0], 100 - anomaly_ratio)
+    threshold = np.percentile(test_scores[1], 100 - anomaly_ratio)
     print(f"train data : {len(train_scores[0])}, test data : {len(test_scores[0])}")
     print(f"mean association discrepancy : {np.mean(test_scores[0])}")
     print(f"mean reconstruction error : {np.mean(test_scores[1])}")
@@ -138,71 +117,49 @@ def main(config):
             "train_score": train_scores,
             "test_preds": test_preds,
             "test_score": test_scores,
-            "threshold": {"assoc": 0.02, "recon": 0.06},
+            "threshold": {"assoc": 0.02, "recon": threshold},
         }
         pickle.dump(data_dict, f)
 
     threshold = data_dict["threshold"]
     anomalies = np.zeros_like(test_scores[0])
-    anomalies[test_scores[0] > data_dict["threshold"]["assoc"]] = 1
-    # anomalies[test_scores[1] > data_dict["threshold"]["recon"]] = 1
+    # anomalies[test_scores[0] > data_dict["threshold"]["assoc"]] = 1
+    anomalies[test_scores[1] > data_dict["threshold"]["recon"]] = 1
 
     fig = plt.figure(figsize=(12, 6))
-    plt.ylim(0, 1)
-    plt.plot(anomalies, linewidth=2)
-    fig.savefig(img_path / "test_anomaly_prediction.png")
+    plt.hist(test_scores[1], range=(0, 0.2), bins=100)
+    plt.grid()
+    fig.savefig(img_path / "test_recon_hist.png")
 
-    # check_graphs_v3(
-    #     train_loader.train,
-    #     train_preds,
-    #     train_scores,
-    #     anomalies,
-    #     threshold["assoc"],
-    # img_path = img_path,
-    # mode = "train",
-    # )
     check_graphs_v3(
         test_loader.test,
         test_preds,
         test_scores,
         anomalies,
-        threshold=threshold["assoc"],
+        threshold=threshold["recon"],
         img_path=img_path,
         mode="test",
     )
 
-    # fig, axes = plt.subplots(2, 1, figsize=(12, 6))
-    # # fig.subtitle("Anomaly Scores Histogram")
-    # axes[0].set_ylabel("Association Discrepancy")
-    # axes[0].set_ylim(0, 0.3)
-    # axes[0].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
-    # axes[0].plot(test_scores[0], color="b")
-    # axes[1].set_ylabel("Reconstruction Error")
-    # axes[1].set_ylim(0, 0.3)
-    # axes[1].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
-    # axes[1].plot(test_scores[1], color="g")
-    # fig.savefig("saved/images/anomaly_scores_plot.png")
-
-    # check_graphs_v1(
-    #     test_scores, prediction, threshold, name=image_path / "test_anomaly"
-    # )
-    #
-    # test_df = pd.read_pickle(data_path / "test.pkl")
-    # check_graphs_v2(
-    #     test_df.values, prediction, test_scores, img_path=image_path, mode="test"
-    # )
-    #
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
     sample_submission["anomaly"] = anomalies
-    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
+    sample_submission.to_csv(
+        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
+    )
     print(sample_submission["anomaly"].value_counts())
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="PyTorch Template")
-    args.add_argument("-c", "--config", default="config.json", type=str, help="config file path")
-    args.add_argument("-r", "--resume", default=None, type=str, help="path to latest checkpoint")
-    args.add_argument("-d", "--device", default=None, type=str, help="indices of GPUs to enable")
+    args.add_argument(
+        "-c", "--config", default="config.json", type=str, help="config file path"
+    )
+    args.add_argument(
+        "-r", "--resume", default=None, type=str, help="path to latest checkpoint"
+    )
+    args.add_argument(
+        "-d", "--device", default=None, type=str, help="indices of GPUs to enable"
+    )
 
     config = ConfigParser.from_args(args)
     main(config)

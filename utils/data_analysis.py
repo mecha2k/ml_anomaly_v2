@@ -87,7 +87,7 @@ def check_graphs_v3(
         axes[2].set_ylabel("Association Scores")
         twins = axes[2].twinx()
         twins.set_ylim(0, 0.3)
-        twins.plot(xticks, scores[1][start:end], color="g", alpha=0.1)
+        twins.plot(xticks, scores[1][start:end], color="g", alpha=0.6)
         twins.set_ylabel("Reconstruction Scores")
         plt.tight_layout()
         fig.savefig(img_path / f"{mode}_preds_data" / f"pred_{i+1:02d}_pages")
