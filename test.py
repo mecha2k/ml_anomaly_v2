@@ -102,43 +102,7 @@ def main(config):
     print(f"mean reconstruction error : {np.mean(test_scores[1])}")
     print(f"Threshold with {100-anomaly_ratio}% percentile : {threshold:.4e}")
 
-    data_path = Path(config["data_loader"]["args"]["data_dir"])
-    img_path = Path("saved/images")
 
-    with open(data_path / "test_anomaly.pkl", "wb") as f:
-        data_dict = {
-            "train_preds": train_preds,
-            "train_score": train_scores,
-            "test_preds": test_preds,
-            "test_score": test_scores,
-            "threshold": {"assoc": 0.02, "recon": threshold},
-        }
-        pickle.dump(data_dict, f)
-
-    threshold = data_dict["threshold"]
-    anomalies = np.zeros_like(test_scores[0])
-    # anomalies[test_scores[0] > data_dict["threshold"]["assoc"]] = 1
-    anomalies[test_scores[1] > data_dict["threshold"]["recon"]] = 1
-
-    fig = plt.figure(figsize=(12, 6))
-    plt.hist(test_scores[1], range=(0, 0.2), bins=100)
-    plt.grid()
-    fig.savefig(img_path / "test_recon_hist.png")
-
-    check_graphs_v3(
-        test_loader.test,
-        test_preds,
-        test_scores,
-        anomalies,
-        threshold=threshold["recon"],
-        img_path=img_path,
-        mode="test",
-    )
-
-    sample_submission = pd.read_csv(data_path / "sample_submission.csv")
-    sample_submission["anomaly"] = anomalies
-    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
-    print(sample_submission["anomaly"].value_counts())
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@
     "optimizer": {
         "type": "Adam",
         "args":{
-            "lr": 1e-4,
+            "lr": 1e-5,
             "weight_decay": 1e-5,
             "amsgrad": false
         }
@@ -40,7 +40,7 @@
         }
     },
     "trainer": {
-        "epochs": 2,
+        "epochs": 1,
         "anomaly_ratio": 10,
         "k": 3,
 

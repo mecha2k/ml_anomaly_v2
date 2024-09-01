@@ -34,11 +34,7 @@ def inf_loop(data_loader):
 
 def prepare_device(n_gpu_use):
     if platform.system() == "Darwin":
-        device = (
-            torch.device("mps")
-            if torch.backends.mps.is_available()
-            else torch.device("cpu")
-        )
+        device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
         list_ids = list(range(n_gpu_use))
         print(f"{device} is available in torch")
         return device, list_ids
@@ -167,24 +163,90 @@ def anomaly_scores(data_loader, model, device, win_size, temperature=50):
         [np.concatenate(ass_scores, axis=0), np.concatenate(rec_scores, axis=0)],
     )
 
-    # def inference(model, data_loader, device="cuda"):
-    #     model.eval()
-    #     timestamps = []
-    #     distances = []
-    #     with torch.no_grad():
-    #         for batch in tqdm(data_loader, desc="Inference", unit="batch"):
-    #             inputs = batch["input"].to(device)
-    #             targets = batch["target"].to(device)
-    #             predictions = model(inputs)
-    #             timestamps.extend(batch["timestamps"])
-    #             distances.extend(torch.abs(targets - predictions).cpu().tolist())
-    #     return np.array(timestamps), np.array(distances)
-    # preds = []
-    # with torch.no_grad():
-    #     for i, (data, target) in enumerate(tqdm(train_loader)):
-    #         data, target = data.to(device), target.to(device)
-    #         output, _, _, _ = model(data)
-    #         data = output.cpu().numpy()
-    #         data = np.concatenate(data, axis=0)
-    #         preds.append(data)
-    # preds = np.concatenate(preds, axis=0)
+
+def check_graphs_v1(data, preds, threshold=None, name="default", piece=15):
+    interval = len(data) // piece
+    fig, axes = plt.subplots(piece, figsize=(20, 4 * piece))
+    # data_mean = np.round(data.mean() * 1.5, 3)
+    print(data.max(), data.min())
+    for i in range(piece):
+        start = i * interval
+        end = min(start + interval, len(data))
+        axes[i].set_ylim(0, 1.5)
+        axes[i].plot(data[start:end], color="blue")
+        axes[i].plot(preds[start:end], color="green")
+        if threshold is not None:
+            axes[i].axhline(y=threshold, color="red")
+    plt.tight_layout()
+    plt.savefig(name)
+    plt.close("all")
+
+
+def check_graphs_v2(data, preds, anomaly, interval=10000, img_path=None, mode="train"):
+    pieces = int(len(data) // interval)
+    for i in range(pieces):
+        start = i * interval
+        end = min(start + interval, len(data))
+        xticks = list(range(start, end, 1000))
+        values = data[start:end]
+        plt.figure(figsize=(16, 8))
+        plt.ylim(-0.5, 1.5)
+        plt.xticks(xticks)
+        plt.grid()
+        plt.plot(values)
+        plt.plot(preds[start:end], color="green", linewidth=8)
+        plt.plot(anomaly[start:end], color="blue", linewidth=5)
+        plt.savefig(img_path / f"{mode}_raw_data" / f"raw_{i+1:02d}_pages")
+        plt.close("all")
+
+
+def check_graphs_v3(
+    data,
+    preds,
+    scores,
+    anomalies,
+    threshold=None,
+    interval=10000,
+    img_path=None,
+    mode="train",
+):
+    plt.rcParams["font.size"] = 16
+    save_dir = img_path / f"{mode}_preds_data"
+    if not save_dir.exists():
+        save_dir.mkdir(parents=True)
+
+    piece = len(data) // interval
+    for i in range(piece):
+        start = i * interval
+        end = min(start + interval, len(data))
+        xticks = range(start, end)
+        fig, axes = plt.subplots(3, figsize=(16, 12))
+        axes[0].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
+        axes[0].set_xticks(np.arange(start, end, step=interval // 10))
+        axes[0].set_ylim(-0.25, 1.25)
+        axes[0].plot(xticks, data[start:end])
+        axes[0].grid()
+        axes[0].legend([f"{mode} data (true)"], loc="upper right")
+        axes[1].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
+        axes[1].set_xticks(np.arange(start, end, step=interval // 10))
+        axes[1].set_ylim(-0.25, 1.25)
+        axes[1].plot(xticks, preds[start:end], alpha=1.0)
+        axes[1].grid()
+        axes[1].legend([f"{mode} data (reconstruction)"], loc="upper right")
+        axes[2].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
+        axes[2].set_xticks(np.arange(start, end, step=interval // 10))
+        axes[2].set_ylim(0, 0.3)
+        axes[2].plot(xticks, scores[0][start:end], color="b", alpha=1)
+        if mode == "test":
+            axes[2].plot(xticks, anomalies[start:end], color="g", linewidth=5)
+        axes[2].grid()
+        axes[2].legend([f"{mode} association"], loc="upper right")
+        axes[2].axhline(y=threshold, color="r", linewidth=2)
+        axes[2].set_ylabel("Association Scores")
+        twins = axes[2].twinx()
+        twins.set_ylim(0, 0.3)
+        twins.plot(xticks, scores[1][start:end], color="g", alpha=0.6)
+        twins.set_ylabel("Reconstruction Scores")
+        plt.tight_layout()
+        fig.savefig(save_dir / f"pred_{i+1:02d}_pages")
+        plt.close("all")
