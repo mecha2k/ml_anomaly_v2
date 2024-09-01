@@ -40,15 +40,16 @@ def main(config):
     loss_fn = getattr(module_loss, config["loss"])
     metric_fns = [getattr(module_metric, met) for met in config["metrics"]]
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("mps" if torch.backends.mps.is_available() else device)
+    print(f"Using device: {device}")
+
     logger.info("Loading checkpoint: {} ...".format(config.resume))
-    checkpoint = torch.load(config.resume)
+    checkpoint = torch.load(Path(config.resume), map_location=device)
     state_dict = checkpoint["state_dict"]
     if config["n_gpu"] > 1:
         model = torch.nn.DataParallel(model)
     model.load_state_dict(state_dict)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("mps" if torch.backends.mps.is_available() else device)
     model = model.to(device)
     model.eval()
 
@@ -78,10 +79,7 @@ def main(config):
     n_samples = len(test_loader.sampler)
     log = {"loss": total_loss / n_samples}
     log.update(
-        {
-            met.__name__: total_metrics[i].item() / n_samples
-            for i, met in enumerate(metric_fns)
-        }
+        {met.__name__: total_metrics[i].item() / n_samples for i, met in enumerate(metric_fns)}
     )
     logger.info(log)
 
@@ -121,9 +119,7 @@ def main(config):
     train_preds, train_scores = anomaly_scores(
         train_loader, model, device, win_size, temperature=50
     )
-    test_preds, test_scores = anomaly_scores(
-        test_loader, model, device, win_size, temperature=50
-    )
+    test_preds, test_scores = anomaly_scores(test_loader, model, device, win_size, temperature=50)
     # combined_assoc = np.concatenate([train_scores[0], test_scores[0]], axis=0)
     # combined_recon = np.concatenate([train_scores[1], test_scores[1]], axis=0)
     anomaly_ratio = config["trainer"]["anomaly_ratio"]
@@ -198,23 +194,15 @@ def main(config):
     #
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
     sample_submission["anomaly"] = anomalies
-    sample_submission.to_csv(
-        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
-    )
+    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
     print(sample_submission["anomaly"].value_counts())
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="PyTorch Template")
-    args.add_argument(
-        "-c", "--config", default="config.json", type=str, help="config file path"
-    )
-    args.add_argument(
-        "-r", "--resume", default=None, type=str, help="path to latest checkpoint"
-    )
-    args.add_argument(
-        "-d", "--device", default=None, type=str, help="indices of GPUs to enable"
-    )
+    args.add_argument("-c", "--config", default="config.json", type=str, help="config file path")
+    args.add_argument("-r", "--resume", default=None, type=str, help="path to latest checkpoint")
+    args.add_argument("-d", "--device", default=None, type=str, help="indices of GPUs to enable")
 
     config = ConfigParser.from_args(args)
     main(config)
