@@ -47,7 +47,14 @@ def check_graphs_v2(data, preds, anomaly, interval=10000, img_path=None, mode="t
 
 
 def check_graphs_v3(
-    data, preds, scores, threshold=None, interval=10000, img_path=None, mode="train"
+    data,
+    preds,
+    scores,
+    anomalies,
+    threshold=None,
+    interval=10000,
+    img_path=None,
+    mode="train",
 ):
     plt.rcParams["font.size"] = 16
     piece = len(data) // interval
@@ -72,9 +79,11 @@ def check_graphs_v3(
         axes[2].set_xticks(np.arange(start, end, step=interval // 10))
         axes[2].set_ylim(0, 0.3)
         axes[2].plot(xticks, scores[0][start:end], color="b", alpha=1)
+        if mode == "test":
+            axes[2].plot(xticks, anomalies[start:end], color="g", linewidth=5)
         axes[2].grid()
         axes[2].legend([f"{mode} association"], loc="upper right")
-        axes[2].axhline(y=threshold, color="r", linewidth=5)
+        axes[2].axhline(y=threshold, color="r", linewidth=2)
         axes[2].set_ylabel("Association Scores")
         twins = axes[2].twinx()
         twins.set_ylim(0, 0.3)

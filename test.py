@@ -133,45 +133,60 @@ def main(config):
     print(f"mean reconstruction error : {np.mean(test_scores[1])}")
     print(f"Threshold with {100-anomaly_ratio}% percentile : {threshold:.4e}")
 
-    check_graphs_v3(
-        train_loader.train,
-        train_preds,
-        train_scores,
-        threshold=0.30,
-        img_path=Path("saved/images"),
-        mode="train",
-    )
+    data_path = Path(config["data_loader"]["args"]["data_dir"])
+    img_path = Path("saved/images")
+
+    with open(data_path / "test_anomaly.pkl", "wb") as f:
+        data_dict = {
+            "train_preds": train_preds,
+            "train_score": train_scores,
+            "test_preds": test_preds,
+            "test_score": test_scores,
+            "threshold": {"assoc": 0.02, "recon": 0.06},
+        }
+        pickle.dump(data_dict, f)
+
+    threshold = data_dict["threshold"]
+    anomalies = np.zeros_like(test_scores[0])
+    anomalies[test_scores[0] > data_dict["threshold"]["assoc"]] = 1
+    # anomalies[test_scores[1] > data_dict["threshold"]["recon"]] = 1
+
+    fig = plt.figure(figsize=(12, 6))
+    plt.ylim(0, 1)
+    plt.plot(anomalies, linewidth=2)
+    fig.savefig(img_path / "test_anomaly_prediction.png")
+
+    # check_graphs_v3(
+    #     train_loader.train,
+    #     train_preds,
+    #     train_scores,
+    #     anomalies,
+    #     threshold["assoc"],
+    # img_path = img_path,
+    # mode = "train",
+    # )
     check_graphs_v3(
         test_loader.test,
         test_preds,
         test_scores,
-        threshold=0.03,
-        img_path=Path("saved/images"),
+        anomalies,
+        threshold=threshold["assoc"],
+        img_path=img_path,
         mode="test",
     )
 
-    fig, axes = plt.subplots(2, 1, figsize=(12, 6))
-    # fig.subtitle("Anomaly Scores Histogram")
-    axes[0].set_ylabel("Association Discrepancy")
-    axes[0].set_ylim(0, 0.3)
-    axes[0].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
-    axes[0].plot(test_scores[0], color="b")
-    axes[1].set_ylabel("Reconstruction Error")
-    axes[1].set_ylim(0, 0.3)
-    axes[1].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
-    axes[1].plot(test_scores[1], color="g")
-    fig.savefig("saved/images/anomaly_scores_plot.png")
+    # fig, axes = plt.subplots(2, 1, figsize=(12, 6))
+    # # fig.subtitle("Anomaly Scores Histogram")
+    # axes[0].set_ylabel("Association Discrepancy")
+    # axes[0].set_ylim(0, 0.3)
+    # axes[0].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
+    # axes[0].plot(test_scores[0], color="b")
+    # axes[1].set_ylabel("Reconstruction Error")
+    # axes[1].set_ylim(0, 0.3)
+    # axes[1].ticklabel_format(style="scientific", axis="y", scilimits=(0, 0))
+    # axes[1].plot(test_scores[1], color="g")
+    # fig.savefig("saved/images/anomaly_scores_plot.png")
 
-    #
-    # data_path = Path(config["data_loader"]["args"]["data_dir"])
-    # image_path = Path("saved/images")
-    #
-    # with open(data_path / "test_anomaly.pkl", "wb") as f:
-    #     data_dict = {"test_score": test_scores, "threshold": threshold}
-    #     pickle.dump(data_dict, f)
-    #
-    # prediction = np.zeros_like(test_scores)
-    # prediction[test_scores > threshold] = 1
     # check_graphs_v1(
     #     test_scores, prediction, threshold, name=image_path / "test_anomaly"
     # )
@@ -181,12 +196,12 @@ def main(config):
     #     test_df.values, prediction, test_scores, img_path=image_path, mode="test"
     # )
     #
-    # sample_submission = pd.read_csv(data_path / "sample_submission.csv")
-    # sample_submission["anomaly"] = prediction
-    # sample_submission.to_csv(
-    #     data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
-    # )
-    # print(sample_submission["anomaly"].value_counts())
+    sample_submission = pd.read_csv(data_path / "sample_submission.csv")
+    sample_submission["anomaly"] = anomalies
+    sample_submission.to_csv(
+        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
+    )
+    print(sample_submission["anomaly"].value_counts())
 
 
 if __name__ == "__main__":
