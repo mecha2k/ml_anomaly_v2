@@ -92,7 +92,7 @@ class Trainer(BaseTrainer):
             if batch_idx % self.log_step == 0:
                 self.logger.debug(
                     "Train Epoch: {} {} Loss: {:.6f}".format(
-                        epoch, self._progress(batch_idx), loss.item()
+                        epoch, self._progress(batch_idx), loss
                     )
                 )
                 inputs = np.concatenate(data.cpu().numpy(), axis=0)
