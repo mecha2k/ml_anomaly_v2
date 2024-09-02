@@ -67,9 +67,9 @@ class HmcDataLoader(BaseDataLoader):
         test_df = pd.read_pickle(data_path / "test.pkl")
         test_timestamps = pd.read_pickle(data_path / "test_timestamps.pkl")
 
-        train_df = train_df[:10000]
-        test_df = test_df[:10000]
-        test_timestamps = test_timestamps[:10000]
+        train_df = train_df[:30000]
+        test_df = test_df[:30000]
+        test_timestamps = test_timestamps[:30000]
 
         self.test_timestamps = np.array(test_timestamps.values)
         self.train = np.array(train_df.values)
