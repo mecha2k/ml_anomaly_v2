@@ -5,8 +5,8 @@
     "model": {
         "type": "TransformerModel",
         "args": {
-            "enc_in": 49,
-            "c_out": 49,
+            "enc_in": 51,
+            "c_out": 51,
             "win_size": 100
         }
     },
