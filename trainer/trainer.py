@@ -64,9 +64,7 @@ class Trainer(BaseTrainer):
             series_loss = 0.0
             priors_loss = 0.0
             for u in range(len(priors)):
-                s_loss, p_loss = association_discrepancy(
-                    series[u], priors[u], self.win_size
-                )
+                s_loss, p_loss = association_discrepancy(series[u], priors[u], self.win_size)
                 series_loss += s_loss
                 priors_loss += p_loss
             series_loss = series_loss / len(priors)
@@ -74,7 +72,7 @@ class Trainer(BaseTrainer):
 
             reconstruction_loss = self.criterion(output, data)
             # total loss : minmax association learning
-            loss = (reconstruction_loss - self.k * series_loss).item()
+            loss = reconstruction_loss - self.k * series_loss
 
             loss1 = reconstruction_loss - self.k * series_loss
             loss2 = reconstruction_loss + self.k * priors_loss
@@ -84,7 +82,7 @@ class Trainer(BaseTrainer):
             self.optimizer.step()
 
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-            self.train_metrics.update("loss", loss)
+            self.train_metrics.update("loss", loss.item())
             met_values = [reconstruction_loss.item(), series_loss.item()]
             for met in self.metric_ftns:
                 self.train_metrics.update(met.__name__, met(met_values))
@@ -92,7 +90,7 @@ class Trainer(BaseTrainer):
             if batch_idx % self.log_step == 0:
                 self.logger.debug(
                     "Train Epoch: {} {} Loss: {:.6f}".format(
-                        epoch, self._progress(batch_idx), loss
+                        epoch, self._progress(batch_idx), loss.item()
                     )
                 )
                 inputs = np.concatenate(data.cpu().numpy(), axis=0)
@@ -122,18 +120,14 @@ class Trainer(BaseTrainer):
 
                 series_loss = 0.0
                 for u in range(len(series)):
-                    s_loss, _ = association_discrepancy(
-                        series[u], priors[u], self.win_size
-                    )
+                    s_loss, _ = association_discrepancy(series[u], priors[u], self.win_size)
                     series_loss += s_loss
                 series_loss = series_loss / len(series)
 
                 reconstruction_loss = self.criterion(output, data)
                 loss = reconstruction_loss - self.k * series_loss
 
-                self.writer.set_step(
-                    (epoch - 1) * len(self.valid_data_loader) + batch_idx, "valid"
-                )
+                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, "valid")
                 self.valid_metrics.update("loss", loss.item())
                 met_values = [reconstruction_loss.item(), series_loss.item()]
                 for met in self.metric_ftns:

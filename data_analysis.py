@@ -76,6 +76,12 @@ def final_submission(model, data_loader, device, data_path):
 if __name__ == "__main__":
     data_path = Path("datasets/open")
     image_path = Path("saved/images")
+
+    #     train_std = train_df.std()
+    #     for col in train_df.columns:
+    #         if train_std[col] < 0.01:
+    #             print(f"Column {col} has {train_std[col]} std values")
+
     with open(data_path / "test_anomaly.pkl", "wb") as f:
         data_dict = {
             "train_preds": train_preds,

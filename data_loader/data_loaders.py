@@ -44,7 +44,7 @@ class HmcDataLoader(BaseDataLoader):
 
         if training:
             train_df_raw = pd.read_csv(data_path / "train.csv")
-            data_columns = train_df_raw.columns.drop(["Timestamp", "anomaly", "F_3", "F_4"])
+            data_columns = train_df_raw.columns.drop(["Timestamp", "anomaly"])
             train_df = train_df_raw[data_columns].astype(float)
             scaler = self.scaler.fit(train_df)
             train = scaler.transform(train_df)
@@ -62,11 +62,6 @@ class HmcDataLoader(BaseDataLoader):
             test_df.to_pickle(data_path / "test.pkl")
             test_timestamps = test_df_raw["Timestamp"]
             test_timestamps.to_pickle(data_path / "test_timestamps.pkl")
-
-            train_std = train_df.std()
-            for col in train_df.columns:
-                if train_std[col] < 0.01:
-                    print(f"Column {col} has {train_std[col]} std values")
 
         train_df = pd.read_pickle(data_path / "train.pkl")
         test_df = pd.read_pickle(data_path / "test.pkl")
