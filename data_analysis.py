@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 import pickle
 from pathlib import Path
 from datetime import datetime
+
+from matplotlib.lines import lineStyles
+from sympy.benchmarks.bench_meijerint import alpha
+
 from utils import check_graphs_v3
 
 
@@ -65,54 +69,91 @@ def final_submission(model, data_loader, device, data_path):
     anomaly_score = fill_blank_data(timestamps, anomaly_score, np.array(timestamps_raw))
     prediction = np.zeros_like(anomaly_score)
     prediction[anomaly_score > threshold] = 1
-    check_graphs(anomaly_score, prediction, threshold=threshold, name=image_path / "test_anomaly")
+    check_graphs(
+        anomaly_score, prediction, threshold=threshold, name=image_path / "test_anomaly"
+    )
 
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
     sample_submission["anomaly"] = prediction
-    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
+    sample_submission.to_csv(
+        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
+    )
     print(sample_submission["anomaly"].value_counts())
+
+
+def drop_columns(df):
+    drop_columns = []
+    for col in df.columns:
+        if df[col].std() < 0.01:
+            drop_columns.append(col)
+    return df.drop(columns=drop_columns)
+
+
+def plot_train_test_dist(train_df, pieces=10, img_path=None, mode="train"):
+    ncols = len(train_df.columns.values)
+    num_plots = np.round(ncols / pieces, 0).astype(int)
+    xticks = np.arange(0, len(train_df), 50000)
+    fig, ax = plt.subplots(pieces, 1, figsize=(12, 3 * pieces))
+    for i in range(pieces):
+        start = i * num_plots
+        end = min(start + num_plots, ncols)
+        ax[i].plot(train_df.iloc[:, start:end])
+        ax[i].set_xticks(xticks)
+        ax[i].set_title(f"Columns {start} to {end}")
+        ax[i].ticklabel_format(style="scientific", axis="x", scilimits=(0, 0))
+        ax[i].legend(train_df.columns[start:end], loc="upper right")
+        ax[i].grid()
+        ax[i].set_ylim(-0.5, 1.5)
+        ax[i].axhline(0, color="r", alpha=0.5)
+        ax[i].axhline(1, color="r", alpha=0.5)
+    fig.tight_layout()
+    fig.savefig(img_path / f"{mode}_dist.png")
 
 
 if __name__ == "__main__":
     data_path = Path("datasets/open")
     image_path = Path("saved/images")
 
-    #     train_std = train_df.std()
-    #     for col in train_df.columns:
-    #         if train_std[col] < 0.01:
-    #             print(f"Column {col} has {train_std[col]} std values")
+    train_df = pd.read_pickle(data_path / "train.pkl")
+    test_df = pd.read_pickle(data_path / "test.pkl")
+    test_timestamps = pd.read_pickle(data_path / "test_timestamps.pkl")
 
-    with open(data_path / "test_anomaly.pkl", "wb") as f:
-        data_dict = {
-            "train_preds": train_preds,
-            "train_score": train_scores,
-            "test_preds": test_preds,
-            "test_score": test_scores,
-            "threshold": {"assoc": 0.02, "recon": threshold},
-        }
-        pickle.dump(data_dict, f)
+    plot_train_test_dist(train_df, pieces=17, img_path=image_path, mode="train")
+    plot_train_test_dist(test_df, pieces=17, img_path=image_path, mode="test")
 
-    threshold = data_dict["threshold"]
-    anomalies = np.zeros_like(test_scores[0])
-    # anomalies[test_scores[0] > data_dict["threshold"]["assoc"]] = 1
-    anomalies[test_scores[1] > data_dict["threshold"]["recon"]] = 1
+    # with open(data_path / "test_anomaly.pkl", "wb") as f:
+    #     data_dict = {
+    #         "train_preds": train_preds,
+    #         "train_score": train_scores,
+    #         "test_preds": test_preds,
+    #         "test_score": test_scores,
+    #         "threshold": {"assoc": 0.02, "recon": threshold},
+    #     }
+    #     pickle.dump(data_dict, f)
 
-    fig = plt.figure(figsize=(12, 6))
-    plt.hist(test_scores[1], range=(0, 0.2), bins=100)
-    plt.grid()
-    fig.savefig(img_path / "test_recon_hist.png")
-
-    check_graphs_v3(
-        test_loader.test,
-        test_preds,
-        test_scores,
-        anomalies,
-        threshold=threshold["recon"],
-        img_path=img_path,
-        mode="test",
-    )
-
-    sample_submission = pd.read_csv(data_path / "sample_submission.csv")
-    sample_submission["anomaly"] = anomalies
-    sample_submission.to_csv(data_path / "final_submission.csv", encoding="UTF-8-sig", index=False)
-    print(sample_submission["anomaly"].value_counts())
+    # threshold = data_dict["threshold"]
+    # anomalies = np.zeros_like(test_scores[0])
+    # # anomalies[test_scores[0] > data_dict["threshold"]["assoc"]] = 1
+    # anomalies[test_scores[1] > data_dict["threshold"]["recon"]] = 1
+    #
+    # fig = plt.figure(figsize=(12, 6))
+    # plt.hist(test_scores[1], range=(0, 0.2), bins=100)
+    # plt.grid()
+    # fig.savefig(img_path / "test_recon_hist.png")
+    #
+    # check_graphs_v3(
+    #     test_loader.test,
+    #     test_preds,
+    #     test_scores,
+    #     anomalies,
+    #     threshold=threshold["recon"],
+    #     img_path=img_path,
+    #     mode="test",
+    # )
+    #
+    # sample_submission = pd.read_csv(data_path / "sample_submission.csv")
+    # sample_submission["anomaly"] = anomalies
+    # sample_submission.to_csv(
+    #     data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
+    # )
+    # print(sample_submission["anomaly"].value_counts())
