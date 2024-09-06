@@ -90,15 +90,15 @@ def plot_train_test_dist(df, pieces=10, img_path=None, mode="train"):
         anomalies = df["anomaly"].values
         df = df.drop(columns=["anomaly"])
     ncols = len(df.columns.values)
-    num_plots = np.round(ncols / pieces, 0).astype(int)
-    xticks = np.arange(0, len(df), 50000)
+    num_plots = max(np.round(ncols / pieces, 0).astype(int), 1)
+    xticks = np.arange(0, len(df), np.ceil(len(df) // 10))
     fig, ax = plt.subplots(pieces, 1, figsize=(12, 3 * pieces))
     for i in range(pieces):
         start = i * num_plots
         end = min(start + num_plots, ncols)
         ax[i].plot(df.iloc[:, start:end])
         if mode == "preds":
-            ax[i].plot(anomalies, color="cyan", alpha=0.3, linewidth=5)
+            ax[i].plot(anomalies * 1.5, color="cyan", alpha=0.3, linewidth=5)
         ax[i].set_xticks(xticks)
         ax[i].set_title(f"Columns {start} to {end}")
         ax[i].ticklabel_format(style="scientific", axis="x", scilimits=(0, 0))
@@ -117,12 +117,17 @@ if __name__ == "__main__":
 
     train_df = pd.read_pickle(data_path / "train.pkl")
     test_df = pd.read_pickle(data_path / "test.pkl")
+    # train_df = train_df[:100000]
+    # test_df = test_df[:100000]
+    # test_df = test_df.iloc[:100000, :3]
+    print(train_df.shape, test_df.shape)
 
     # plot_train_test_dist(train_df, pieces=17, img_path=image_path, mode="train")
     # plot_train_test_dist(test_df, pieces=17, img_path=image_path, mode="test")
 
     margins = 0.2
     anomaly_cols = []
+    anomaly_dict = []
     predictions = np.zeros_like(test_df.values).transpose()
     for i, col in enumerate(test_df.columns):
         data = test_df[col].values
@@ -134,16 +139,27 @@ if __name__ == "__main__":
             predictions[i, loc_min] = 1
             loc = np.where(predictions[i] == 1)[0]
             anomay_ratio = len(loc) / len(data) * 100
-            print(f"Column {col} has {len(loc)} anomalies and {anomay_ratio:.2f}%")
+            anomaly_dict.append(
+                {"col": col, "anomalies": len(loc), "ratio": anomay_ratio}
+            )
     print(f"Total {len(anomaly_cols)} columns have anomalies")
+    for ano in anomaly_dict:
+        print(
+            f"{ano['col']}: {ano['anomalies']} anomalies detected with {ano['ratio']:.2f}% ratio"
+        )
     print(f"Total {predictions.sum()} anomalies detected")
-    print(f"Colums with anomalies: {anomaly_cols}")
 
     preds_df = pd.DataFrame(predictions.transpose(), columns=test_df.columns)
-    preds_df["anomaly"] = preds_df.max(axis=1).astype(int)
-    print(preds_df.sum(axis=0))
+    print(preds_df.shape)
+    print(preds_df.sum(axis=0))  # sum of all anomalies detected in each column
+    preds_df["anomaly"] = preds_df.sum(axis=1).astype(int)
+    print(preds_df["anomaly"].value_counts())
+    print(preds_df["anomaly"][3000:3500].values)
 
-    test_df["anomaly"] = preds_df["anomaly"]
+    test_df["anomaly"] = preds_df["anomaly"].apply(lambda x: 1 if x > 1 else 0)
+    print(test_df["anomaly"].value_counts())
+    print(test_df["anomaly"][3000:3500].values)
+    print(f"Anomaly ratio: {test_df['anomaly'].sum() / len(test_df) * 100:.2f}%")
     plot_train_test_dist(test_df, pieces=17, img_path=image_path, mode="preds")
 
     # with open(data_path / "test_anomaly.pkl", "wb") as f:
@@ -177,7 +193,7 @@ if __name__ == "__main__":
     # )
 
     sample_submission = pd.read_csv(data_path / "sample_submission.csv")
-    sample_submission["anomaly"] = preds_df["anomaly"]
+    sample_submission["anomaly"] = test_df["anomaly"]
     sample_submission.to_csv(
         data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
     )
