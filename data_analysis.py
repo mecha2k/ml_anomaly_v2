@@ -137,41 +137,54 @@ def check_graphs_v3(
     if not save_dir.exists():
         save_dir.mkdir(parents=True)
 
+    submit_path = Path("datasets/open") / "submissions"
+    submit_files = submit_path.glob("*.csv")
+    submit_files = sorted(sub for sub in submit_files)
+    submit_df = pd.read_csv(submit_files[-1])
+    submit_data = submit_df["anomaly"].values
+    submit_name = submit_files[-1].name.split(".")[0]
+
     piece = len(data) // interval
+    inputs = [data, preds, scores[0], scores[1]]
+    titles = [
+        "Input data (true)",
+        "Outputs (Reconstruction)",
+        "Association Scores",
+        "Reconstruction Scores",
+    ]
     for i in range(piece):
         start = i * interval
         end = min(start + interval, len(data))
         xticks = range(start, end)
-        fig, axes = plt.subplots(3, figsize=(16, 12))
-        axes[0].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
-        axes[0].set_xticks(np.arange(start, end, step=interval // 10))
-        axes[0].set_ylim(-0.5, 2)
-        axes[0].plot(xticks, data[start:end])
-        axes[0].grid()
-        axes[0].legend([f"{mode} data (true)"], loc="upper right")
-        axes[1].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
-        axes[1].set_xticks(np.arange(start, end, step=interval // 10))
-        axes[1].set_ylim(-0.5, 2)
-        axes[1].plot(xticks, preds[start:end], alpha=1.0)
-        axes[1].grid()
-        axes[1].legend([f"{mode} data (reconstruction)"], loc="upper right")
-        axes[2].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
-        axes[2].set_xticks(np.arange(start, end, step=interval // 10))
-        axes[2].set_ylim(0, scores[0].max())
-        axes[2].plot(xticks, scores[0][start:end], color="blue", alpha=0.5, linewidth=5)
-        axes[2].grid()
-        axes[2].legend(["association scores"])
-        axes[2].axhline(y=threshold, color="r", linewidth=2)
-        axes[2].set_ylabel("Association Scores")
-        twins = axes[2].twinx()
-        twins.set_ylim(0, scores[1].max())
-        if mode == "test":
-            axes[2].set_ylim(0, 0.3)
-            twins.set_ylim(0, 0.3)
-            axes[2].plot(xticks, anomalies[start:end], color="green", linewidth=5)
-        twins.legend(["reconstruction scores"])
-        twins.plot(xticks, scores[1][start:end], color="orange", alpha=0.5, linewidth=5)
-        twins.set_ylabel("Reconstruction Scores")
+        fig, axes = plt.subplots(4, figsize=(16, 16))
+
+        for j, dt in enumerate(inputs):
+            axes[j].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
+            axes[j].set_xticks(np.arange(start, end, step=interval // 10))
+            axes[j].set_ylim(-0.5, 2)
+            axes[j].plot(xticks, dt[start:end])
+            axes[j].grid()
+            axes[j].legend([f"{titles[j]}"], loc="upper right")
+            if mode == "test":
+                if j == 2:
+                    axes[j].set_ylim(0, 0.05)
+                    axes[j].plot(
+                        xticks, anomalies[start:end], color="green", linewidth=2
+                    )
+                    axes[j].plot(
+                        xticks,
+                        submit_data[start:end] * 0.03,
+                        color="green",
+                        linewidth=2,
+                    )
+                    axes[j].axhline(y=0.02, color="r", linewidth=2, alpha=0.5)
+                    axes[j].text(
+                        x=100, y=0.025, s=f"0.{submit_name}", fontsize=24, color="r"
+                    )
+                if j == 3:
+                    axes[j].set_ylim(0, 0.3)
+                    axes[j].axhline(y=0.1, color="r", linewidth=2, alpha=0.5)
+
         plt.tight_layout()
         fig.savefig(save_dir / f"pred_{i+1:02d}_pages")
         plt.close("all")
@@ -201,8 +214,8 @@ def transformer_anomaly_detection(data_path, img_path, anomaly_ratio=10):
 
     # combined_assoc = np.concatenate([train_scores[0], test_scores[0]], axis=0)
     # combined_recon = np.concatenate([train_scores[1], test_scores[1]], axis=0)
-    threshold = min(np.percentile(test_scores[1], 100 - anomaly_ratio), 0.08)
-    print(f"Threshold with {100 - anomaly_ratio}% percentile : {threshold:.3f}")
+    threshold = min(np.percentile(test_scores[0], 100 - anomaly_ratio), 0.03)
+    print(f"Threshold with {100 - anomaly_ratio}% percentile : {threshold:.3e}")
 
     predictions = np.zeros_like(test_scores[0])
     predictions[test_scores[1] > threshold] = 1
@@ -227,9 +240,9 @@ if __name__ == "__main__":
     # minmax_anomaly_detection(data_path, image_path)
     predictions = transformer_anomaly_detection(data_path, image_path, anomaly_ratio=10)
 
-    sample_submission = pd.read_csv(data_path / "sample_submission.csv")
-    sample_submission["anomaly"] = predictions
-    sample_submission.to_csv(
-        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
-    )
-    print(sample_submission["anomaly"].value_counts())
+    # sample_submission = pd.read_csv(data_path / "sample_submission.csv")
+    # sample_submission["anomaly"] = predictions
+    # sample_submission.to_csv(
+    #     data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
+    # )
+    # print(sample_submission["anomaly"].value_counts())
