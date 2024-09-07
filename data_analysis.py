@@ -145,13 +145,13 @@ def check_graphs_v3(
         fig, axes = plt.subplots(3, figsize=(16, 12))
         axes[0].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
         axes[0].set_xticks(np.arange(start, end, step=interval // 10))
-        axes[0].set_ylim(-0.25, 1.25)
+        axes[0].set_ylim(-0.5, 2)
         axes[0].plot(xticks, data[start:end])
         axes[0].grid()
         axes[0].legend([f"{mode} data (true)"], loc="upper right")
         axes[1].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
         axes[1].set_xticks(np.arange(start, end, step=interval // 10))
-        axes[1].set_ylim(-0.25, 1.75)
+        axes[1].set_ylim(-0.5, 2)
         axes[1].plot(xticks, preds[start:end], alpha=1.0)
         axes[1].grid()
         axes[1].legend([f"{mode} data (reconstruction)"], loc="upper right")
@@ -190,8 +190,8 @@ def transformer_anomaly_detection(data_path, img_path, anomaly_ratio=10):
 
     # combined_assoc = np.concatenate([train_scores[0], test_scores[0]], axis=0)
     # combined_recon = np.concatenate([train_scores[1], test_scores[1]], axis=0)
-    threshold = np.percentile(test_scores[1], 100 - anomaly_ratio)
-    print(f"Threshold with {100 - anomaly_ratio}% percentile : {threshold:.4e}")
+    threshold = min(np.percentile(test_scores[1], 100 - anomaly_ratio), 0.08)
+    print(f"Threshold with {100 - anomaly_ratio}% percentile : {threshold:.3f}")
 
     predictions = np.zeros_like(test_scores[0])
     predictions[test_scores[1] > threshold] = 1

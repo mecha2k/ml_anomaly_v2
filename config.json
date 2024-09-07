@@ -37,11 +37,11 @@
         "type": "StepLR",
         "args": {
             "step_size": 1,
-            "gamma": 0.2
+            "gamma": 0.5
         }
     },
     "trainer": {
-        "epochs": 10,
+        "epochs": 2,
         "anomaly_ratio": 10,
         "k": 3,
 
