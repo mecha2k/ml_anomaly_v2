@@ -17,10 +17,10 @@ class TransformerModel(BaseModel):
         win_size,
         enc_in,
         c_out,
-        d_model=512,
-        n_heads=8,
+        d_model=1024,  # 512
+        n_heads=16,  # 8
         e_layers=3,
-        d_ff=512,
+        d_ff=1024,  # 512
         dropout=0.0,
         activation="gelu",
         output_attention=True,

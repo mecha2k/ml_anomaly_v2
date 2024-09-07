@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import pickle
 import json
 import platform
 from pathlib import Path
@@ -34,7 +35,11 @@ def inf_loop(data_loader):
 
 def prepare_device(n_gpu_use):
     if platform.system() == "Darwin":
-        device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+        device = (
+            torch.device("mps")
+            if torch.backends.mps.is_available()
+            else torch.device("cpu")
+        )
         list_ids = list(range(n_gpu_use))
         print(f"{device} is available in torch")
         return device, list_ids
@@ -200,53 +205,33 @@ def check_graphs_v2(data, preds, anomaly, interval=10000, img_path=None, mode="t
         plt.close("all")
 
 
-def check_graphs_v3(
-    data,
-    preds,
-    scores,
-    anomalies,
-    threshold=None,
-    interval=10000,
-    img_path=None,
-    mode="train",
-):
-    plt.rcParams["font.size"] = 16
-    save_dir = img_path / f"{mode}_preds_data"
-    if not save_dir.exists():
-        save_dir.mkdir(parents=True)
+def save_anomaly_scores(model, data_loader, device, config):
+    data_path = Path(config["data_loader"]["args"]["data_dir"])
+    win_size = config["data_loader"]["args"]["win_size"]
 
-    piece = len(data) // interval
-    for i in range(piece):
-        start = i * interval
-        end = min(start + interval, len(data))
-        xticks = range(start, end)
-        fig, axes = plt.subplots(3, figsize=(16, 12))
-        axes[0].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
-        axes[0].set_xticks(np.arange(start, end, step=interval // 10))
-        axes[0].set_ylim(-0.25, 1.25)
-        axes[0].plot(xticks, data[start:end])
-        axes[0].grid()
-        axes[0].legend([f"{mode} data (true)"], loc="upper right")
-        axes[1].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
-        axes[1].set_xticks(np.arange(start, end, step=interval // 10))
-        axes[1].set_ylim(-0.25, 1.25)
-        axes[1].plot(xticks, preds[start:end], alpha=1.0)
-        axes[1].grid()
-        axes[1].legend([f"{mode} data (reconstruction)"], loc="upper right")
-        axes[2].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
-        axes[2].set_xticks(np.arange(start, end, step=interval // 10))
-        axes[2].set_ylim(0, 0.3)
-        axes[2].plot(xticks, scores[0][start:end], color="b", alpha=1)
-        if mode == "test":
-            axes[2].plot(xticks, anomalies[start:end], color="g", linewidth=5)
-        axes[2].grid()
-        axes[2].legend([f"{mode} association"], loc="upper right")
-        axes[2].axhline(y=threshold, color="r", linewidth=2)
-        axes[2].set_ylabel("Association Scores")
-        twins = axes[2].twinx()
-        twins.set_ylim(0, 0.3)
-        twins.plot(xticks, scores[1][start:end], color="g", alpha=0.6)
-        twins.set_ylabel("Reconstruction Scores")
-        plt.tight_layout()
-        fig.savefig(save_dir / f"pred_{i+1:02d}_pages")
-        plt.close("all")
+    train_preds, train_scores = anomaly_scores(
+        data_loader["train"], model, device, win_size, temperature=50
+    )
+    test_preds, test_scores = anomaly_scores(
+        data_loader["test"], model, device, win_size, temperature=50
+    )
+
+    # combined_assoc = np.concatenate([train_scores[0], test_scores[0]], axis=0)
+    # combined_recon = np.concatenate([train_scores[1], test_scores[1]], axis=0)
+    anomaly_ratio = config["trainer"]["anomaly_ratio"]
+    threshold = np.percentile(test_scores[1], 100 - anomaly_ratio)
+
+    with open(data_path / "test_anomaly.pkl", "wb") as f:
+        data_dict = {
+            "train_preds": train_preds,
+            "train_score": train_scores,
+            "test_preds": test_preds,
+            "test_score": test_scores,
+            "threshold": {"assoc": 0.02, "recon": threshold},
+        }
+        pickle.dump(data_dict, f)
+
+    print(f"train data : {len(train_scores[0])}, test data : {len(test_scores[0])}")
+    print(f"mean association discrepancy : {np.mean(test_scores[0])}")
+    print(f"mean reconstruction error : {np.mean(test_scores[1])}")
+    print(f"Threshold with {100 - anomaly_ratio}% percentile : {threshold:.4e}")

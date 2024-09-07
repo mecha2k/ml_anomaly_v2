@@ -40,7 +40,8 @@ def main(config):
     criterion = getattr(module_loss, config["loss"])
     metrics = [getattr(module_metric, met) for met in config["metrics"]]
 
-    # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
+    # build optimizer, learning rate scheduler.
+    # delete every lines containing lr_scheduler for disabling scheduler
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = config.init_obj("optimizer", torch.optim, trainable_params)
     lr_scheduler = config.init_obj("lr_scheduler", torch.optim.lr_scheduler, optimizer)
@@ -64,15 +65,23 @@ def main(config):
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="PyTorch Template")
-    args.add_argument("-c", "--config", default="config.json", type=str, help="config file path")
-    args.add_argument("-r", "--resume", default=None, type=str, help="path to latest checkpoint")
-    args.add_argument("-d", "--device", default=None, type=str, help="indices of GPUs to enable")
+    args.add_argument(
+        "-c", "--config", default="config.json", type=str, help="config file path"
+    )
+    args.add_argument(
+        "-r", "--resume", default=None, type=str, help="path to latest checkpoint"
+    )
+    args.add_argument(
+        "-d", "--device", default=None, type=str, help="indices of GPUs to enable"
+    )
 
     # custom cli options to modify configuration from default values given in json file.
     CustomArgs = collections.namedtuple("CustomArgs", "flags type target")
     options = [
         CustomArgs(["--lr", "--learning_rate"], type=float, target="optimizer;args;lr"),
-        CustomArgs(["--bs", "--batch_size"], type=int, target="data_loader;args;batch_size"),
+        CustomArgs(
+            ["--bs", "--batch_size"], type=int, target="data_loader;args;batch_size"
+        ),
     ]
     config = ConfigParser.from_args(args, options)
 

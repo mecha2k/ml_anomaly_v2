@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
+
+from sympy.core.random import shuffle
 from tqdm import tqdm
 from pathlib import Path
 
@@ -12,13 +14,7 @@ import model.loss as module_loss
 import model.metric as module_metric
 import model.model as module_model
 from parse_config import ConfigParser
-from utils import (
-    association_discrepancy,
-    anomaly_scores,
-    check_graphs_v1,
-    check_graphs_v2,
-    check_graphs_v3,
-)
+from utils import save_anomaly_scores, association_discrepancy
 
 
 def main(config):
@@ -30,6 +26,7 @@ def main(config):
         batch_size=config["data_loader"]["args"]["batch_size"],
         stride=config["data_loader"]["args"]["win_size"],
         training=False,
+        shuffle=False,
     )
 
     # build model architecture
@@ -78,7 +75,10 @@ def main(config):
     n_samples = len(test_loader.sampler)
     log = {"loss": total_loss / n_samples}
     log.update(
-        {met.__name__: total_metrics[i].item() / n_samples for i, met in enumerate(metric_fns)}
+        {
+            met.__name__: total_metrics[i].item() / n_samples
+            for i, met in enumerate(metric_fns)
+        }
     )
     logger.info(log)
 
@@ -87,27 +87,25 @@ def main(config):
         batch_size=config["data_loader"]["args"]["batch_size"],
         stride=config["data_loader"]["args"]["win_size"],
         training=True,
+        shuffle=False,
     )
 
-    train_preds, train_scores = anomaly_scores(
-        train_loader, model, device, win_size, temperature=50
+    save_anomaly_scores(
+        model, {"train": train_loader, "test": test_loader}, device, config
     )
-    test_preds, test_scores = anomaly_scores(test_loader, model, device, win_size, temperature=50)
-    # combined_assoc = np.concatenate([train_scores[0], test_scores[0]], axis=0)
-    # combined_recon = np.concatenate([train_scores[1], test_scores[1]], axis=0)
-    anomaly_ratio = config["trainer"]["anomaly_ratio"]
-    threshold = np.percentile(test_scores[1], 100 - anomaly_ratio)
-    print(f"train data : {len(train_scores[0])}, test data : {len(test_scores[0])}")
-    print(f"mean association discrepancy : {np.mean(test_scores[0])}")
-    print(f"mean reconstruction error : {np.mean(test_scores[1])}")
-    print(f"Threshold with {100-anomaly_ratio}% percentile : {threshold:.4e}")
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="PyTorch Template")
-    args.add_argument("-c", "--config", default="config.json", type=str, help="config file path")
-    args.add_argument("-r", "--resume", default=None, type=str, help="path to latest checkpoint")
-    args.add_argument("-d", "--device", default=None, type=str, help="indices of GPUs to enable")
+    args.add_argument(
+        "-c", "--config", default="config.json", type=str, help="config file path"
+    )
+    args.add_argument(
+        "-r", "--resume", default=None, type=str, help="path to latest checkpoint"
+    )
+    args.add_argument(
+        "-d", "--device", default=None, type=str, help="indices of GPUs to enable"
+    )
 
     config = ConfigParser.from_args(args)
     main(config)
