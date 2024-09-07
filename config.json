@@ -35,12 +35,12 @@
     "lr_scheduler": {
         "type": "StepLR",
         "args": {
-            "step_size": 10,
-            "gamma": 0.5
+            "step_size": 1,
+            "gamma": 0.2
         }
     },
     "trainer": {
-        "epochs": 1,
+        "epochs": 30,
         "anomaly_ratio": 10,
         "k": 3,
 
