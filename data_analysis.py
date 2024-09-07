@@ -178,13 +178,24 @@ def check_graphs_v3(
 
 
 def transformer_anomaly_detection(data_path, img_path, anomaly_ratio=10):
-    train_df = pd.read_pickle(data_path / "train.pkl")
-    test_df = pd.read_pickle(data_path / "test.pkl")
     with open(data_path / "test_anomaly.pkl", "rb") as f:
         data_dict = pickle.load(f)
 
-    train_preds = data_dict["train_preds"]
-    train_scores = data_dict["train_score"]
+    # train_df = pd.read_pickle(data_path / "train.pkl")
+    # train_preds = data_dict["train_preds"]
+    # train_scores = data_dict["train_score"]
+
+    # check_graphs_v3(
+    #     train_df,
+    #     train_preds,
+    #     train_scores,
+    #     np.zeros_like(train_scores[0]),
+    #     threshold=threshold,
+    #     img_path=img_path,
+    #     mode="train",
+    # )
+
+    test_df = pd.read_pickle(data_path / "test.pkl")
     test_preds = data_dict["test_preds"]
     test_scores = data_dict["test_score"]
 
@@ -196,15 +207,6 @@ def transformer_anomaly_detection(data_path, img_path, anomaly_ratio=10):
     predictions = np.zeros_like(test_scores[0])
     predictions[test_scores[1] > threshold] = 1
 
-    # check_graphs_v3(
-    #     train_df,
-    #     train_preds,
-    #     train_scores,
-    #     np.zeros_like(train_scores[0]),
-    #     threshold=threshold,
-    #     img_path=img_path,
-    #     mode="train",
-    # )
     check_graphs_v3(
         test_df,
         test_preds,
