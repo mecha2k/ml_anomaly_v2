@@ -5,9 +5,9 @@
     "model": {
         "type": "TransformerModel",
         "args": {
-            "enc_in": 51,
-            "c_out": 51,
-            "win_size": 40
+            "enc_in": 48,
+            "c_out": 48,
+            "win_size": 10
         }
     },
     "data_loader": {
@@ -15,7 +15,7 @@
         "args":{
             "data_dir": "datasets/open",
             "batch_size": 32,
-            "win_size": 40,
+            "win_size": 10,
             "stride": 1,
             "shuffle": true,
             "validation_split": 0.1

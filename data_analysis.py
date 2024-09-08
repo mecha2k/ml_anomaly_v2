@@ -171,13 +171,10 @@ def check_graphs_v3(
                 if j == 2:
                     axes[j].set_ylim(0, 0.05)
                     axes[j].plot(
-                        xticks, anomalies[start:end], color="green", linewidth=2
-                    )
-                    axes[j].plot(
                         xticks,
                         submit_data[start:end] * 0.03,
                         color="green",
-                        linewidth=2,
+                        linewidth=5,
                     )
                     axes[j].axhline(y=0.02, color="r", linewidth=2, alpha=0.5)
                     axes[j].set_title(
@@ -185,11 +182,15 @@ def check_graphs_v3(
                     )
                 if j == 3:
                     axes[j].set_ylim(0, 0.3)
-                    axes[j].axhline(y=0.1, color="r", linewidth=2, alpha=0.5)
+                    axes[j].plot(
+                        xticks, anomalies[start:end] * 0.1, color="green", linewidth=5
+                    )
+                    axes[j].axhline(y=threshold, color="r", linewidth=2, alpha=0.5)
 
         plt.tight_layout()
         fig.savefig(save_dir / f"pred_{i+1:02d}_pages")
         plt.close("all")
+        break
 
 
 def transformer_anomaly_detection(data_path, img_path, anomaly_ratio=10):
@@ -219,7 +220,9 @@ def transformer_anomaly_detection(data_path, img_path, anomaly_ratio=10):
     threshold = min(np.percentile(test_scores[0], 100 - anomaly_ratio), 0.03)
     print(f"Threshold with {100 - anomaly_ratio}% percentile : {threshold:.3e}")
 
-    predictions = np.zeros_like(test_scores[0])
+    threshold = 0.04
+
+    predictions = np.zeros_like(test_scores[1])
     predictions[test_scores[1] > threshold] = 1
 
     # Input(true), Outputs(Reconstruction), Association Scores, Reconstruction Scores
@@ -243,9 +246,9 @@ if __name__ == "__main__":
     # minmax_anomaly_detection(data_path, image_path)
     predictions = transformer_anomaly_detection(data_path, image_path, anomaly_ratio=10)
 
-    # sample_submission = pd.read_csv(data_path / "sample_submission.csv")
-    # sample_submission["anomaly"] = predictions
-    # sample_submission.to_csv(
-    #     data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
-    # )
-    # print(sample_submission["anomaly"].value_counts())
+    sample_submission = pd.read_csv(data_path / "sample_submission.csv")
+    sample_submission["anomaly"] = predictions
+    sample_submission.to_csv(
+        data_path / "final_submission.csv", encoding="UTF-8-sig", index=False
+    )
+    print(sample_submission["anomaly"].value_counts())

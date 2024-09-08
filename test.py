@@ -24,6 +24,7 @@ def main(config):
     test_loader = getattr(module_data, config["data_loader"]["type"])(
         config["data_loader"]["args"]["data_dir"],
         batch_size=config["data_loader"]["args"]["batch_size"],
+        win_size=config["data_loader"]["args"]["win_size"],
         stride=config["data_loader"]["args"]["win_size"],
         training=False,
         shuffle=False,
@@ -85,6 +86,7 @@ def main(config):
     train_loader = getattr(module_data, config["data_loader"]["type"])(
         config["data_loader"]["args"]["data_dir"],
         batch_size=config["data_loader"]["args"]["batch_size"],
+        win_size=config["data_loader"]["args"]["win_size"],
         stride=config["data_loader"]["args"]["win_size"],
         training=True,
         shuffle=False,

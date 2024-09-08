@@ -34,7 +34,7 @@ class HmcDataLoader(BaseDataLoader):
         self,
         data_dir,
         batch_size,
-        win_size=100,
+        win_size,
         stride=1,
         shuffle=True,
         training=True,
@@ -43,26 +43,30 @@ class HmcDataLoader(BaseDataLoader):
         data_path = Path(data_dir)
         self.scaler = MinMaxScaler()
 
-        # if training:
-        #     train_df_raw = pd.read_csv(data_path / "train.csv")
-        #     data_columns = train_df_raw.columns.drop(["Timestamp", "anomaly"])
-        #     train_df = train_df_raw[data_columns].astype(float)
-        #     scaler = self.scaler.fit(train_df)
-        #     train = scaler.transform(train_df)
-        #     train_df = pd.DataFrame(
-        #         train, columns=train_df.columns, index=list(train_df.index.values)
-        #     )
-        #     train_df = train_df.ewm(alpha=0.9).mean()
-        #     train_df.to_pickle(data_path / "train.pkl")
-        #
-        #     test_df_raw = pd.read_csv(data_path / "test.csv")
-        #     test_df = test_df_raw[data_columns].astype(float)
-        #     test = scaler.transform(test_df)
-        #     test_df = pd.DataFrame(test, columns=test_df.columns, index=list(test_df.index.values))
-        #     test_df = test_df.ewm(alpha=0.9).mean()
-        #     test_df.to_pickle(data_path / "test.pkl")
-        #     test_timestamps = test_df_raw["Timestamp"]
-        #     test_timestamps.to_pickle(data_path / "test_timestamps.pkl")
+        if training:
+            train_df_raw = pd.read_csv(data_path / "train.csv")
+            data_columns = train_df_raw.columns.drop(
+                ["Timestamp", "anomaly", "B_2", "F_3", "F_4"]
+            )
+            train_df = train_df_raw[data_columns].astype(float)
+            scaler = self.scaler.fit(train_df)
+            train = scaler.transform(train_df)
+            train_df = pd.DataFrame(
+                train, columns=train_df.columns, index=list(train_df.index.values)
+            )
+            train_df = train_df.ewm(alpha=0.9).mean()
+            train_df.to_pickle(data_path / "train.pkl")
+
+            test_df_raw = pd.read_csv(data_path / "test.csv")
+            test_df = test_df_raw[data_columns].astype(float)
+            test = scaler.transform(test_df)
+            test_df = pd.DataFrame(
+                test, columns=test_df.columns, index=list(test_df.index.values)
+            )
+            test_df = test_df.ewm(alpha=0.9).mean()
+            test_df.to_pickle(data_path / "test.pkl")
+            test_timestamps = test_df_raw["Timestamp"]
+            test_timestamps.to_pickle(data_path / "test_timestamps.pkl")
 
         train_df = pd.read_pickle(data_path / "train.pkl")
         test_df = pd.read_pickle(data_path / "test.pkl")
