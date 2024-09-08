@@ -14,7 +14,7 @@ def check_graphs_v4(
     interval=10000,
     img_path=None,
 ):
-    plt.rcParams["font.size"] = 16
+    plt.rcParams["font.size"] = 12
     if not img_path.exists():
         img_path.mkdir(parents=True)
 
@@ -28,7 +28,7 @@ def check_graphs_v4(
         start = i * interval
         end = min(start + interval, len(data))
         xticks = range(start, end)
-        fig, axes = plt.subplots(3, figsize=(12, 4 * len(columns)))
+        fig, axes = plt.subplots(len(columns) + 1, figsize=(12, 3 * (len(columns) + 1)))
         axes[0].ticklabel_format(style="plain", axis="both", scilimits=(0, 0))
         axes[0].set_xticks(np.arange(start, end, step=interval // 10))
         axes[0].set_ylim(-0.5, 2)

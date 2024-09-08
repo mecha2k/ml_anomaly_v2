@@ -6,6 +6,8 @@ import pickle
 from pathlib import Path
 from datetime import datetime
 
+from networkx.algorithms.bipartite import color
+
 
 def fill_blank_data(timestamps, datasets, total_ts):
     # create dataframes with total_ts index and 0 values
@@ -178,8 +180,8 @@ def check_graphs_v3(
                         linewidth=2,
                     )
                     axes[j].axhline(y=0.02, color="r", linewidth=2, alpha=0.5)
-                    axes[j].text(
-                        x=100, y=0.025, s=f"0.{submit_name}", fontsize=24, color="r"
+                    axes[j].set_title(
+                        f"Anomaly Detection with 0.{submit_name}", color="g"
                     )
                 if j == 3:
                     axes[j].set_ylim(0, 0.3)
@@ -220,6 +222,7 @@ def transformer_anomaly_detection(data_path, img_path, anomaly_ratio=10):
     predictions = np.zeros_like(test_scores[0])
     predictions[test_scores[1] > threshold] = 1
 
+    # Input(true), Outputs(Reconstruction), Association Scores, Reconstruction Scores
     check_graphs_v3(
         test_df,
         test_preds,
