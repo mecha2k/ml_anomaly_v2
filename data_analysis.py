@@ -183,14 +183,13 @@ def check_graphs_v3(
                 if j == 3:
                     axes[j].set_ylim(0, 0.3)
                     axes[j].plot(
-                        xticks, anomalies[start:end] * 0.1, color="green", linewidth=5
+                        xticks, anomalies[start:end] * 0.2, color="green", linewidth=5
                     )
                     axes[j].axhline(y=threshold, color="r", linewidth=2, alpha=0.5)
 
         plt.tight_layout()
         fig.savefig(save_dir / f"pred_{i+1:02d}_pages")
         plt.close("all")
-        break
 
 
 def transformer_anomaly_detection(data_path, img_path, anomaly_ratio=10):
@@ -217,13 +216,16 @@ def transformer_anomaly_detection(data_path, img_path, anomaly_ratio=10):
 
     # combined_assoc = np.concatenate([train_scores[0], test_scores[0]], axis=0)
     # combined_recon = np.concatenate([train_scores[1], test_scores[1]], axis=0)
-    threshold = min(np.percentile(test_scores[0], 100 - anomaly_ratio), 0.03)
+
+    threshold = np.percentile(test_scores[1], 100 - anomaly_ratio)
     print(f"Threshold with {100 - anomaly_ratio}% percentile : {threshold:.3e}")
 
-    threshold = 0.04
+    threshold = np.mean(test_scores[1]) + 1 * np.std(test_scores[1])
+    print(f"Threshold with mean + 1 * std : {threshold:.3e}")
 
     predictions = np.zeros_like(test_scores[1])
     predictions[test_scores[1] > threshold] = 1
+    print(f"Total {predictions.mean() * 100:.2f}% anomaly detected")
 
     # Input(true), Outputs(Reconstruction), Association Scores, Reconstruction Scores
     check_graphs_v3(
