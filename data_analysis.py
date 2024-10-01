@@ -6,8 +6,6 @@ import pickle
 from pathlib import Path
 from datetime import datetime
 
-from networkx.algorithms.bipartite import color
-
 
 def fill_blank_data(timestamps, datasets, total_ts):
     # create dataframes with total_ts index and 0 values
